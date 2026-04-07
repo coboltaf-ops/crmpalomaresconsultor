@@ -8,6 +8,7 @@ import { useProductosStore } from '@/features/productos/store/productos-store'
 import { useReferenceStore } from '@/features/referencias/store/reference-store'
 import { useCurrentUserStore } from '@/features/usuarios-gestion/store/current-user-store'
 import { useEmpresaStore } from '@/features/empresa/store/empresa-store'
+import { useLineasServicioStore } from '@/features/lineas-servicio/store/lineas-servicio-store'
 import { usePermisos } from '@/shared/hooks/use-permisos'
 import { fmtMoney } from '@/shared/lib/format-number'
 import { fDate, todayColombia } from '@/shared/lib/format-date'
@@ -26,17 +27,21 @@ const emptyDetalle = (): DetalleCotizacion => ({
 })
 
 const emptyCotizacion = (codigo: string, nro: number, responsable: string): Cotizacion => ({
-  id: '', codigo, nro, fecha_emision: today,
+  id: '', codigo, nro,
+  linea_servicio_id: '', linea_servicio_codigo: '', linea_servicio_nombre: '', pct_aiu: 10,
+  fecha_emision: today,
   fecha_vencimiento: '', cliente_id: '', cliente_nombre: '', contacto_id: '', contacto_nombre: '',
   oportunidad_id: '', oportunidad_nombre: '', tipo_moneda: 'Pesos Colombianos',
-  condicion_pago: 'Contado', pct_impuesto: 18, observaciones: '', detalles: [emptyDetalle()],
+  condicion_pago: 'Contado', pct_impuesto: 19, observaciones: '', detalles: [emptyDetalle()],
   situacion: 'En Construcción', responsable, vendedor: '', fecha_registro: today, seguimientos: [],
 })
 
-const calcTotals = (detalles: DetalleCotizacion[], pct: number) => {
+const calcTotals = (detalles: DetalleCotizacion[], pct: number, pctAiu: number = 0) => {
   const subtotal = detalles.reduce((s, d) => s + d.subtotal, 0)
-  const impuesto = subtotal * (pct / 100)
-  return { subtotal, impuesto, total: subtotal + impuesto }
+  const aiu = subtotal * (pctAiu / 100)
+  const baseImpuesto = subtotal + aiu
+  const impuesto = baseImpuesto * (pct / 100)
+  return { subtotal, aiu, impuesto, total: baseImpuesto + impuesto }
 }
 
 export default function CotizacionesPage() {
@@ -52,6 +57,7 @@ export default function CotizacionesPage() {
   const vendedores = useReferenceStore(s => s.vendedores).filter(v => v.situacion)
   const empresas = useEmpresaStore(s => s.empresas)
   const empresa = empresas[0]
+  const lineasServicio = useLineasServicioStore(s => s.lineas).filter(l => l.situacion === 'Activo')
 
   const [selected, setSelected] = useState<Cotizacion | null>(null)
   const [isForm, setIsForm] = useState(false)
@@ -63,7 +69,7 @@ export default function CotizacionesPage() {
   const { pendingSearch, pendingAction, clearPending } = useAsistenteStore()
   useEffect(() => {
     if (pendingSearch) setSearch(pendingSearch)
-    if (pendingAction === 'nuevo') { const nc = nextConsecutivo('COT-', cotizaciones.map(c => c.codigo)); setSelected(emptyCotizacion(nc.codigo, nc.nro, `${currentUser?.nombre} ${currentUser?.apellido}`)); setIsForm(true) }
+    if (pendingAction === 'nuevo') { setSelected(emptyCotizacion('', 0, `${currentUser?.nombre} ${currentUser?.apellido}`)); setIsForm(true) }
     if (pendingSearch || pendingAction) clearPending()
   }, [])
   const [emailModal, setEmailModal] = useState<Cotizacion | null>(null)
@@ -99,6 +105,7 @@ export default function CotizacionesPage() {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
+    if (!selected.linea_servicio_id) { alert('Debe seleccionar una línea de servicio'); return }
     const cli = clientes.find(c => c.id === selected.cliente_id)
     const con = allContactos.find(c => c.id === selected.contacto_id)
     const opo = oportunidades.find(o => o.id === selected.oportunidad_id)
@@ -150,7 +157,7 @@ export default function CotizacionesPage() {
   }
 
   const generatePDF = (cot: Cotizacion) => {
-    const { subtotal, impuesto, total } = calcTotals(cot.detalles, cot.pct_impuesto)
+    const { subtotal, aiu, impuesto, total } = calcTotals(cot.detalles, cot.pct_impuesto, cot.pct_aiu)
     const cli = clientes.find(c => c.id === cot.cliente_id)
     const rows = cot.detalles.map((d, i) => `
       <tr style="background:${i % 2 === 0 ? '#f9fafb' : '#fff'}">
@@ -199,6 +206,7 @@ export default function CotizacionesPage() {
       <div style="text-align:right;margin-bottom:24px">
         <p>Subtotal: <strong>${fmtMoney(subtotal)}</strong></p>
         <br/>
+        ${cot.pct_aiu > 0 ? `<p>AIU (${cot.pct_aiu}%): <strong>${fmtMoney(aiu)}</strong></p><br/>` : ''}
         <p>Impuesto (${cot.pct_impuesto}%): <strong>${fmtMoney(impuesto)}</strong></p>
         <br/>
         <p style="font-size:18px;color:#1e1b4b;border-top:2px solid #1e1b4b;padding-top:8px;margin-top:4px">TOTAL GENERAL: <strong>${fmtMoney(total)}</strong></p>
@@ -238,15 +246,17 @@ export default function CotizacionesPage() {
     const celular = contacto?.celular || cliente?.telefono || ''
     if (!celular) { alert('No se encontró número de celular del contacto o empresa'); return }
     const numero = celular.replace(/[^0-9]/g, '')
-    const { subtotal, impuesto, total } = calcTotals(cot.detalles, cot.pct_impuesto)
+    const { subtotal, aiu, impuesto, total } = calcTotals(cot.detalles, cot.pct_impuesto, cot.pct_aiu)
     const items = cot.detalles.map(d => `  - ${d.descripcion}: ${d.cantidad} x ${fmtMoney(d.precio_unitario)} = ${fmtMoney(d.subtotal)}`).join('\n')
     const mensaje = `Hola, le enviamos la cotización *${cot.codigo}*\n\n` +
       `*Empresa:* ${cot.cliente_nombre}\n` +
+      (cot.linea_servicio_nombre ? `*Línea:* ${cot.linea_servicio_nombre}\n` : '') +
       `*Fecha:* ${fDate(cot.fecha_emision)}\n` +
       `*Condición de Pago:* ${cot.condicion_pago}\n` +
       `*Moneda:* ${cot.tipo_moneda}\n\n` +
       `*Detalle:*\n${items}\n\n` +
       `*Subtotal:* ${fmtMoney(subtotal)}\n` +
+      (cot.pct_aiu > 0 ? `*AIU (${cot.pct_aiu}%):* ${fmtMoney(aiu)}\n` : '') +
       `*Impuesto (${cot.pct_impuesto}%):* ${fmtMoney(impuesto)}\n` +
       `*TOTAL: ${fmtMoney(total)}*\n\n` +
       (cot.observaciones ? `_${cot.observaciones}_\n\n` : '') +
@@ -291,7 +301,7 @@ export default function CotizacionesPage() {
 
   // ── VIEW DETAIL ──
   if (viewDetail) {
-    const { subtotal, impuesto, total } = calcTotals(viewDetail.detalles, viewDetail.pct_impuesto)
+    const { subtotal, aiu, impuesto, total } = calcTotals(viewDetail.detalles, viewDetail.pct_impuesto, viewDetail.pct_aiu)
     return (
       <div>
         <button onClick={() => setViewDetail(null)} style={{ ...btnStyle, background: '#000000', color: '#ffffff', border: '1px solid #333333', marginBottom: 16 }}>← Volver</button>
@@ -368,6 +378,10 @@ export default function CotizacionesPage() {
 
           <div style={{ textAlign: 'right', marginBottom: 16 }}>
             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Subtotal: <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(subtotal)}</span></p>
+            {viewDetail.pct_aiu > 0 && <>
+              <div style={{ height: 12 }} />
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>AIU ({viewDetail.pct_aiu}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(aiu)}</span></p>
+            </>}
             <div style={{ height: 12 }} />
             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Impuesto ({viewDetail.pct_impuesto}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(impuesto)}</span></p>
             <div style={{ height: 12 }} />
@@ -403,7 +417,7 @@ export default function CotizacionesPage() {
 
   // ── FORM ──
   if (isForm && selected) {
-    const { subtotal, impuesto, total } = calcTotals(selected.detalles, selected.pct_impuesto)
+    const { subtotal, aiu, impuesto, total } = calcTotals(selected.detalles, selected.pct_impuesto, selected.pct_aiu)
     return (
       <div>
         <button onClick={() => { setIsForm(false); setSelected(null) }} style={{ ...btnStyle, background: '#000000', color: '#ffffff', border: '1px solid #333333', marginBottom: 16 }}>← Volver</button>
@@ -412,6 +426,35 @@ export default function CotizacionesPage() {
 
           {/* Header fields */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
+            <div style={{ gridColumn: 'span 3' }}>
+              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Línea de Servicio *</label>
+              <select value={selected.linea_servicio_id} onChange={e => {
+                const linea = lineasServicio.find(l => l.id === e.target.value)
+                if (!linea) {
+                  setSelected({ ...selected, linea_servicio_id: '', linea_servicio_codigo: '', linea_servicio_nombre: '', codigo: '', nro: 0 })
+                  return
+                }
+                // Generar consecutivo independiente por línea
+                const codigosLinea = cotizaciones.filter(c => c.linea_servicio_codigo === linea.codigo).map(c => c.codigo)
+                const nc = nextConsecutivo(linea.prefijo_cotizacion, codigosLinea)
+                setSelected({
+                  ...selected,
+                  linea_servicio_id: linea.id,
+                  linea_servicio_codigo: linea.codigo,
+                  linea_servicio_nombre: linea.nombre,
+                  codigo: nc.codigo,
+                  nro: nc.nro,
+                  pct_impuesto: linea.iva_default,
+                  pct_aiu: linea.aiu_default,
+                })
+              }} required disabled={!!selected.id} style={inputStyle}>
+                <option value="">Seleccionar línea de servicio...</option>
+                {lineasServicio.map(l => <option key={l.id} value={l.id}>{l.codigo} — {l.nombre}</option>)}
+              </select>
+              {selected.linea_servicio_codigo && (
+                <p style={{ color: '#4ade80', fontSize: 11, marginTop: 4, fontFamily: 'monospace' }}>Código asignado: {selected.codigo}</p>
+              )}
+            </div>
             <div style={{ gridColumn: 'span 3' }}>
               <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Empresa *</label>
               <select value={selected.cliente_id} onChange={e => {
@@ -489,6 +532,10 @@ export default function CotizacionesPage() {
               <select value={selected.tipo_moneda} onChange={e => setSelected({ ...selected, tipo_moneda: e.target.value })} style={inputStyle}>
                 {refOptions('tipo_moneda').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
+            </div>
+            <div>
+              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>% AIU</label>
+              <input type="number" step="0.01" min="0" value={selected.pct_aiu} onChange={e => setSelected({ ...selected, pct_aiu: parseFloat(e.target.value) || 0 })} style={inputStyle} />
             </div>
             <div>
               <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>% Impuesto</label>
@@ -582,6 +629,7 @@ export default function CotizacionesPage() {
           {/* Totals */}
           <div style={{ textAlign: 'right', marginBottom: 16 }}>
             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Subtotal: <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(subtotal)}</span></p>
+            {selected.pct_aiu > 0 && <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>AIU ({selected.pct_aiu}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(aiu)}</span></p>}
             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Impuesto ({selected.pct_impuesto}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(impuesto)}</span></p>
             <p style={{ color: '#4ade80', fontSize: 18, fontWeight: 800, marginTop: 4 }}>TOTAL: ${fmtMoney(total)}</p>
           </div>
@@ -611,7 +659,7 @@ export default function CotizacionesPage() {
     { header: 'Situación', key: 'situacion', width: 10 },
   ]
   const reportRows = filtered.map(c => {
-    const { total } = calcTotals(c.detalles, c.pct_impuesto)
+    const { total } = calcTotals(c.detalles, c.pct_impuesto, c.pct_aiu)
     return {
       codigo: c.codigo, cliente_nombre: c.cliente_nombre, emision: fDate(c.fecha_emision),
       vence: fDate(c.fecha_vencimiento), items: c.detalles.length, total: `${fmtMoney(total)}`,
@@ -628,7 +676,7 @@ export default function CotizacionesPage() {
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Gestión de cotizaciones comerciales</p>
         </div>
         {permisos.editar && tab === 'registros' && (
-          <button onClick={() => { { const nc = nextConsecutivo('COT-', cotizaciones.map(c => c.codigo)); setSelected(emptyCotizacion(nc.codigo, nc.nro, `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`)) }; setIsForm(true) }} style={{ ...btnStyle, background: '#0f1b3d', color: '#ffffff' }}>+ Nueva Cotización</button>
+          <button onClick={() => { setSelected(emptyCotizacion('', 0, `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`)); setIsForm(true) }} style={{ ...btnStyle, background: '#0f1b3d', color: '#ffffff' }}>+ Nueva Cotización</button>
         )}
       </div>
 
@@ -644,17 +692,23 @@ export default function CotizacionesPage() {
           <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
-                {['Código', 'Empresa', 'Tipo ID', 'Nro Documento', 'Dirección', 'Ciudad', 'País', 'Emisión', 'Vence', 'Items', 'Total', 'Situación', 'Acciones'].map(h => (
+                {['Código', 'Línea', 'Empresa', 'Tipo ID', 'Nro Documento', 'Dirección', 'Ciudad', 'País', 'Emisión', 'Vence', 'Items', 'Total', 'Situación', 'Acciones'].map(h => (
                   <th key={h} style={{ padding: '12px 14px', background: '#1e3a5f', color: '#fff', fontSize: 12, textAlign: 'left' }}>{h}</th>
                 ))}
               </tr></thead>
               <tbody>
                 {filtered.map((c, i) => {
-                  const { total } = calcTotals(c.detalles, c.pct_impuesto)
+                  const { total } = calcTotals(c.detalles, c.pct_impuesto, c.pct_aiu)
                   const cli = clientes.find(cl => cl.id === c.cliente_id)
+                  const linea = lineasServicio.find(l => l.codigo === c.linea_servicio_codigo)
                   return (
                     <tr key={c.id} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent' }}>
                       <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#4ade80', fontSize: 13, fontFamily: 'monospace' }}>{c.codigo}</td>
+                      <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                        {c.linea_servicio_codigo ? (
+                          <span title={c.linea_servicio_nombre} style={{ background: linea?.color || '#475569', color: '#fff', padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, fontFamily: 'monospace' }}>{c.linea_servicio_codigo}</span>
+                        ) : <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>—</span>}
+                      </td>
                       <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: 13 }}>{c.cliente_nombre}</td>
                       <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{cli?.tipo_identificacion || ''}</td>
                       <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{cli?.nro_documento || ''}</td>
@@ -689,7 +743,7 @@ export default function CotizacionesPage() {
                     </tr>
                   )
                 })}
-                {filtered.length === 0 && <tr><td colSpan={13} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No hay cotizaciones registradas</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={14} style={{ padding: 32, textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No hay cotizaciones registradas</td></tr>}
               </tbody>
             </table>
           </div>

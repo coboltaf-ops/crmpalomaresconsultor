@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { readList, writeList } from '@/shared/lib/kv-store'
 
-const KV_KEY = 'prospectos-externos'
+const KV_KEY = 'nova-prospectos-externos'
 
 interface ProspectoExterno {
   id: string
@@ -11,7 +11,10 @@ interface ProspectoExterno {
   empresa: string
   correo: string
   nro_movil: string
+  ciudad: string
+  linea_interes: string
   descripcion_requerimiento: string
+  acepta_datos: boolean
   fecha_registro: string
   hora_registro: string
   importado: boolean
@@ -32,10 +35,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { nombre, apellido, empresa, correo, nro_movil, descripcion_requerimiento } = body
+    const { nombre, apellido, empresa, correo, nro_movil, ciudad, linea_interes, descripcion_requerimiento, acepta_datos } = body
 
     if (!nombre || !apellido || !correo || !descripcion_requerimiento) {
       return NextResponse.json({ error: 'Faltan campos obligatorios: nombre, apellido, correo y descripción del requerimiento.' }, { status: 400 })
+    }
+    if (!acepta_datos) {
+      return NextResponse.json({ error: 'Debe aceptar la política de tratamiento de datos personales.' }, { status: 400 })
     }
 
     // Validar formato email
@@ -56,7 +62,10 @@ export async function POST(req: NextRequest) {
       empresa: (empresa || '').trim(),
       correo: correo.trim().toLowerCase(),
       nro_movil: (nro_movil || '').trim(),
+      ciudad: (ciudad || '').trim(),
+      linea_interes: (linea_interes || '').trim(),
       descripcion_requerimiento: descripcion_requerimiento.trim(),
+      acepta_datos: true,
       fecha_registro: fechaReg,
       hora_registro: horaReg,
       importado: false,
@@ -92,6 +101,8 @@ export async function POST(req: NextRequest) {
               <table style="width:100%;border-collapse:collapse">
                 <tr><td style="color:#64748b;padding:6px 0;font-size:13px;width:140px">Nombre:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${nombre.trim()} ${apellido.trim()}</td></tr>
                 <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Empresa:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${(empresa || '—').trim()}</td></tr>
+                <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Ciudad:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${(ciudad || '—').trim()}</td></tr>
+                <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Servicio interés:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${(linea_interes || '—').trim()}</td></tr>
                 <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Fecha recepción:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${fechaEmail}</td></tr>
                 <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Hora recepción:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${horaReg}</td></tr>
               </table>
@@ -104,7 +115,7 @@ export async function POST(req: NextRequest) {
               Agradecemos su confianza. Si tiene alguna duda, no dude en comunicarse con nosotros.
             </p>
           </div>
-          <p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:16px">NOVASEGURIDAD</p>
+          <p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:16px">Nova Seguridad</p>
         </div>`
 
       await transporter.sendMail({

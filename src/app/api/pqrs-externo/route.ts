@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readList, writeList } from '@/shared/lib/kv-store'
 
-const KV_KEY = 'pqrs-externas'
+const KV_KEY = 'nova-pqrs-externas'
 
 interface PQRSExterna {
   id: string
@@ -17,6 +17,7 @@ interface PQRSExterna {
   persona_avisa: string
   movil_avisa: string
   detalle_incidencia: string
+  acepta_datos: boolean
   fecha_registro: string
   hora_registro: string
   importada: boolean
@@ -37,10 +38,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { fecha, tipo, prioridad, cliente_id, cliente_codigo, cliente_nombre, fecha_aviso, hora_aviso, persona_avisa, movil_avisa, detalle_incidencia } = body
+    const { fecha, tipo, prioridad, cliente_id, cliente_codigo, cliente_nombre, fecha_aviso, hora_aviso, persona_avisa, movil_avisa, detalle_incidencia, acepta_datos } = body
 
     if (!tipo || !persona_avisa || !detalle_incidencia) {
       return NextResponse.json({ error: 'Faltan campos obligatorios: tipo, persona que avisa y detalle son requeridos.' }, { status: 400 })
+    }
+    if (!acepta_datos) {
+      return NextResponse.json({ error: 'Debe aceptar la política de tratamiento de datos personales.' }, { status: 400 })
+    }
+    if (!hora_aviso) {
+      return NextResponse.json({ error: 'La hora del aviso es obligatoria.' }, { status: 400 })
     }
 
     const now = new Date()
@@ -67,6 +74,7 @@ export async function POST(req: NextRequest) {
       persona_avisa,
       movil_avisa: movil_avisa || '',
       detalle_incidencia,
+      acepta_datos: true,
       fecha_registro: fechaReg,
       hora_registro: horaReg,
       importada: false,

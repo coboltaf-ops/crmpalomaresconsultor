@@ -7,12 +7,26 @@ type FormData = {
   empresa: string
   correo: string
   nro_movil: string
+  ciudad: string
+  linea_interes: string
   descripcion_requerimiento: string
+  acepta_datos: boolean
 }
 
 const initial: FormData = {
-  nombre: '', apellido: '', empresa: '', correo: '', nro_movil: '', descripcion_requerimiento: '',
+  nombre: '', apellido: '', empresa: '', correo: '', nro_movil: '',
+  ciudad: '', linea_interes: '', descripcion_requerimiento: '', acepta_datos: false,
 }
+
+const lineasInteres = [
+  'Vigilancia Física',
+  'Escoltas',
+  'CCTV / Cámaras',
+  'Rastreo Satelital GPS',
+  'Medios Tecnológicos / Alarmas',
+  'Caninos',
+  'Otro',
+]
 
 export default function ProspectosPublicoPage() {
   const [form, setForm] = useState<FormData>(initial)
@@ -21,7 +35,7 @@ export default function ProspectosPublicoPage() {
   const [result, setResult] = useState<{ ok: boolean; mensaje: string } | null>(null)
   const [salir, setSalir] = useState(false)
 
-  const set = (field: keyof FormData, value: string) => {
+  const set = <K extends keyof FormData>(field: K, value: FormData[K]) => {
     setForm(prev => ({ ...prev, [field]: value }))
     if (errors[field]) setErrors(prev => { const n = { ...prev }; delete n[field]; return n })
   }
@@ -34,8 +48,11 @@ export default function ProspectosPublicoPage() {
     if (!form.correo.trim()) e.correo = 'Correo es obligatorio'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.correo)) e.correo = 'Formato de correo no válido'
     if (!form.nro_movil.trim()) e.nro_movil = 'Nro Móvil es obligatorio'
+    if (!form.ciudad.trim()) e.ciudad = 'Ciudad es obligatoria'
+    if (!form.linea_interes) e.linea_interes = 'Seleccione el servicio de interés'
     if (!form.descripcion_requerimiento.trim()) e.descripcion_requerimiento = 'Descripción es obligatoria'
     if (form.descripcion_requerimiento.length > 2000) e.descripcion_requerimiento = 'Máximo 2000 caracteres'
+    if (!form.acepta_datos) e.acepta_datos = 'Debe aceptar la política de tratamiento de datos'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -117,7 +134,7 @@ export default function ProspectosPublicoPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>🤝</div>
             <div>
-              <h1 style={{ color: '#ffffff', fontSize: 17, fontWeight: 800, margin: 0 }}>NOVASEGURIDAD · Prospecto</h1>
+              <h1 style={{ color: '#ffffff', fontSize: 17, fontWeight: 800, margin: 0 }}>Nova Seguridad · Prospecto</h1>
               <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, margin: 0 }}>Déjenos sus datos y lo contactaremos</p>
             </div>
           </div>
@@ -177,7 +194,26 @@ export default function ProspectosPublicoPage() {
               {errors.nro_movil && <p style={errText}>{errors.nro_movil}</p>}
             </div>
 
-            {/* 6. Descripción Requerimiento */}
+            {/* 6. Ciudad */}
+            <div>
+              <label style={labelStyle}>Ciudad<span style={req}>*</span></label>
+              <input value={form.ciudad} onChange={e => set('ciudad', e.target.value)}
+                placeholder="Bogotá, Medellín..." style={errors.ciudad ? inputErr : inputStyle} />
+              {errors.ciudad && <p style={errText}>{errors.ciudad}</p>}
+            </div>
+
+            {/* 7. Línea de Servicio de Interés */}
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={labelStyle}>Servicio de Interés<span style={req}>*</span></label>
+              <select value={form.linea_interes} onChange={e => set('linea_interes', e.target.value)}
+                style={errors.linea_interes ? inputErr : inputStyle}>
+                <option value="">Seleccione el servicio que le interesa...</option>
+                {lineasInteres.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+              {errors.linea_interes && <p style={errText}>{errors.linea_interes}</p>}
+            </div>
+
+            {/* 8. Descripción Requerimiento */}
             <div style={{ gridColumn: 'span 2' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label style={labelStyle}>Descripción Requerimiento<span style={req}>*</span></label>
@@ -191,6 +227,18 @@ export default function ProspectosPublicoPage() {
               {errors.descripcion_requerimiento && <p style={errText}>{errors.descripcion_requerimiento}</p>}
             </div>
 
+          </div>
+
+          {/* Habeas Data */}
+          <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: errors.acepta_datos ? '1px solid #fca5a5' : '1px solid rgba(255,255,255,0.1)' }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer' }}>
+              <input type="checkbox" checked={form.acepta_datos} onChange={e => set('acepta_datos', e.target.checked)}
+                style={{ marginTop: 3, accentColor: '#3b82f6', cursor: 'pointer' }} />
+              <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, lineHeight: 1.5 }}>
+                Autorizo a <strong>Nova Seguridad</strong> el tratamiento de mis datos personales de acuerdo con la Ley 1581 de 2012 (Habeas Data) para ser contactado con fines comerciales.<span style={req}>*</span>
+              </span>
+            </label>
+            {errors.acepta_datos && <p style={errText}>{errors.acepta_datos}</p>}
           </div>
 
           {/* Botón enviar */}

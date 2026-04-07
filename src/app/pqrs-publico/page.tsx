@@ -47,7 +47,8 @@ export default function PQRSPublicoPage() {
   const [result, setResult] = useState<{ ok: boolean; mensaje: string; radicado?: string } | null>(null)
   const [salir, setSalir] = useState(false)
 
-  const [tiposRef, setTiposRef] = useState<{ id: string; icon: string }[]>(tipos)
+  const [acepta, setAcepta] = useState(false)
+  const [errorAcepta, setErrorAcepta] = useState('')
 
   const set = (field: keyof FormData, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -64,7 +65,6 @@ export default function PQRSPublicoPage() {
       if (data.valid) {
         setClienteInfo({ cliente_id: data.cliente_id, cliente_codigo: data.cliente_codigo, cliente_nombre: data.cliente_nombre })
         setForm(prev => ({ ...prev, cliente_id: data.cliente_id, cliente_codigo: data.cliente_codigo, cliente_nombre: data.cliente_nombre }))
-        void loadTipos()
       } else {
         setErrorCodigo(data.error || 'Código no válido')
         setClienteInfo(null)
@@ -74,19 +74,17 @@ export default function PQRSPublicoPage() {
     } finally { setValidando(false) }
   }
 
-  const loadTipos = async () => {
-    try { void tiposRef } catch { /* silent */ }
-    setTiposRef(tipos)
-  }
-
   const validate = (): boolean => {
     const e: Partial<Record<keyof FormData, string>> = {}
     if (!form.tipo) e.tipo = 'Seleccione un tipo'
     if (!form.fecha_aviso) e.fecha_aviso = 'Fecha requerida'
+    if (!form.hora_aviso) e.hora_aviso = 'Hora requerida'
     if (!form.persona_avisa.trim()) e.persona_avisa = 'Nombre requerido'
     if (!form.detalle_incidencia.trim()) e.detalle_incidencia = 'Detalle requerido'
     if (form.detalle_incidencia.length > 2000) e.detalle_incidencia = 'Máximo 2000 caracteres'
     setErrors(e)
+    if (!acepta) { setErrorAcepta('Debe aceptar la política de tratamiento de datos'); return false }
+    setErrorAcepta('')
     return Object.keys(e).length === 0
   }
 
@@ -98,7 +96,7 @@ export default function PQRSPublicoPage() {
       const res = await fetch('/api/pqrs-externo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, acepta_datos: acepta }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -174,7 +172,7 @@ export default function PQRSPublicoPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📩</div>
             <div>
-              <h1 style={{ color: "#ffffff", fontSize: 17, fontWeight: 800, margin: 0 }}>NOVASEGURIDAD · Radicar PQRS</h1>
+              <h1 style={{ color: "#ffffff", fontSize: 17, fontWeight: 800, margin: 0 }}>Nova Seguridad · Radicar PQRS</h1>
               <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, margin: 0 }}>Peticiones, Quejas, Reclamos y Sugerencias</p>
             </div>
           </div>
@@ -255,7 +253,7 @@ export default function PQRSPublicoPage() {
                 <div>
                   <label style={labelStyle}>Tipo de Incidencia<span style={req}>*</span></label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                    {tiposRef.map(t => (
+                    {tipos.map(t => (
                       <button key={t.id} type="button" onClick={() => set('tipo', t.id)}
                         style={{
                           padding: '6px 4px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600, transition: 'all 0.15s',
@@ -286,8 +284,10 @@ export default function PQRSPublicoPage() {
 
                 {/* 5. Hora Aviso */}
                 <div>
-                  <label style={labelStyle}>Hora Aviso</label>
-                  <input type="time" value={form.hora_aviso} onChange={e => set('hora_aviso', e.target.value)} style={inputStyle} />
+                  <label style={labelStyle}>Hora Aviso<span style={req}>*</span></label>
+                  <input type="time" value={form.hora_aviso} onChange={e => set('hora_aviso', e.target.value)}
+                    style={errors.hora_aviso ? inputErr : inputStyle} />
+                  {errors.hora_aviso && <p style={errText}>{errors.hora_aviso}</p>}
                 </div>
 
                 {/* 6. Persona que Avisa */}
@@ -336,6 +336,18 @@ export default function PQRSPublicoPage() {
                     ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Habeas Data */}
+              <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: errorAcepta ? '1px solid #fca5a5' : '1px solid rgba(255,255,255,0.1)' }}>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={acepta} onChange={e => { setAcepta(e.target.checked); if (e.target.checked) setErrorAcepta('') }}
+                    style={{ marginTop: 3, accentColor: '#3b82f6', cursor: 'pointer' }} />
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, lineHeight: 1.5 }}>
+                    Autorizo a <strong>Nova Seguridad</strong> el tratamiento de mis datos personales de acuerdo con la Ley 1581 de 2012 (Habeas Data) para gestionar mi PQRS.<span style={req}>*</span>
+                  </span>
+                </label>
+                {errorAcepta && <p style={errText}>{errorAcepta}</p>}
               </div>
 
               {/* Botón enviar */}

@@ -149,7 +149,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (!user) return null
 
   const isAdmin = user.rol.toLowerCase() === 'admin'
-  const configModuleIds = ['usuarios', 'email-marketing', 'flujos', 'datos-empresa', 'disenador-correos', 'modulos']
+  const configModuleIds = ['usuarios', 'email-marketing', 'flujos', 'datos-empresa', 'disenador-correos', 'modulos', 'lineas-servicio']
   const mainItems = modulos
     .filter(m => m.activo && (m.grupo === 'principal' || !configModuleIds.includes(m.id)))
     .filter(m => m.grupo === 'principal')

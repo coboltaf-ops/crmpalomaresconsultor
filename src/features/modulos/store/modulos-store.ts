@@ -36,6 +36,7 @@ const defaultModulos: Modulo[] = [
   { id: 'datos-empresa', label: 'Mi Empresa', icon: '🏛️', href: '/datos-empresa', activo: true, grupo: 'configuracion' },
   { id: 'disenador-correos', label: 'Diseñador Correos', icon: '🎨', href: '/disenador-correos', activo: true, grupo: 'configuracion' },
   { id: 'modulos', label: 'Módulos', icon: '🧩', href: '/modulos', activo: true, grupo: 'configuracion' },
+  { id: 'lineas-servicio', label: 'Líneas de Servicio', icon: '🛡️', href: '/lineas-servicio', activo: true, grupo: 'configuracion' },
 ]
 
 export const useModulosStore = create<ModulosState>()(

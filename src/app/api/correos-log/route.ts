@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readList, writeList } from '@/shared/lib/kv-store'
 
-const KV_KEY = 'correos-log'
+const KV_KEY = 'nova-correos-log'
 
 export interface CorreoLog {
   id: string
