@@ -5,14 +5,19 @@ import { useCurrentUserStore } from '@/features/usuarios-gestion/store/current-u
 import { useModulosStore } from '@/features/modulos/store/modulos-store'
 import { useAsistenteStore } from '@/shared/stores/asistente-store'
 import { useClientesStore } from '@/features/clientes/store/clientes-store'
+import { useEmpresaStore } from '@/features/empresa/store/empresa-store'
 import { useFlujoListener } from '@/features/flujos/lib/useFlujoListener'
 import { useAutoSeed } from '@/shared/hooks/use-auto-seed'
+import { useCacheBust } from '@/shared/hooks/use-cache-bust'
+
+// Versión del build inyectada en build-time. Cambia con cada deploy.
+const BUILD_VERSION = process.env.NEXT_PUBLIC_BUILD_VERSION || String(Date.now())
 
 const ROUTE_KEYWORDS: { keywords: string[]; href: string; label: string }[] = [
   { keywords: ['empresa', 'empresas', 'cliente', 'clientes'], href: '/clientes', label: 'Empresas' },
   { keywords: ['contacto', 'contactos'], href: '/contactos', label: 'Contactos' },
   { keywords: ['producto', 'productos', 'servicio', 'servicios'], href: '/productos', label: 'Productos' },
-  { keywords: ['cotizacion', 'cotizaciones', 'cotización', 'cotizaciones', 'proforma'], href: '/cotizaciones', label: 'Cotizaciones' },
+  { keywords: ['cotizacion', 'cotizaciones', 'cotización', 'cotizaciones', 'proforma'], href: '/cotizaciones-v2', label: 'Cotizaciones' },
   { keywords: ['prospecto', 'prospectos', 'lead', 'leads'], href: '/prospectos', label: 'Prospectos' },
   { keywords: ['pqrs', 'queja', 'reclamo', 'peticion', 'petición', 'solicitud'], href: '/pqrs', label: 'PQRS' },
   { keywords: ['oportunidad', 'oportunidades', 'negocio', 'oport'], href: '/oportunidades', label: 'Oportunidades' },
@@ -36,6 +41,7 @@ function resolveRoute(text: string): { href: string; label: string } | null {
 }
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  useCacheBust(BUILD_VERSION)
   useAutoSeed()
   useFlujoListener()
   const router = useRouter()
@@ -44,6 +50,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const logout = useCurrentUserStore(s => s.logout)
   const modulos = useModulosStore(s => s.modulos)
   const clientes = useClientesStore(s => s.clientes)
+  const empresa = useEmpresaStore(s => s.empresas[0])
   const { setPending } = useAsistenteStore()
   const [collapsed, setCollapsed] = useState(false)
   const [showAsistente, setShowAsistente] = useState(false)
@@ -67,6 +74,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       body: JSON.stringify({ clientes: activos.map(c => ({ id: c.id, codigo: c.codigo, razon_social: c.razon_social, codigo_acceso: c.codigo_acceso })) }),
     }).catch(() => {})
   }, [clientes])
+
+  // Sincronizar nombre y logo de la empresa al servidor para los formularios públicos
+  useEffect(() => {
+    if (!empresa) return
+    fetch('/api/empresa-publica', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: empresa.nombre, logo_url: empresa.logo_url }),
+    }).catch(() => {})
+  }, [empresa?.nombre, empresa?.logo_url])
 
   useEffect(() => {
     if (user && !sessionStorage.getItem('asistente-shown')) {
@@ -149,7 +166,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   if (!user) return null
 
   const isAdmin = user.rol.toLowerCase() === 'admin'
-  const configModuleIds = ['usuarios', 'email-marketing', 'flujos', 'datos-empresa', 'disenador-correos', 'modulos', 'lineas-servicio']
+  const configModuleIds = ['usuarios', 'email-marketing', 'flujos', 'datos-empresa', 'disenador-correos', 'modulos', 'lineas-servicio', 'personal', 'auditoria']
   const mainItems = modulos
     .filter(m => m.activo && (m.grupo === 'principal' || !configModuleIds.includes(m.id)))
     .filter(m => m.grupo === 'principal')
@@ -214,9 +231,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             {collapsed ? '☰' : '✕'}
           </button>
           {!collapsed && (
-            <div>
-              <p style={{ color: '#ffffff', fontWeight: 800, fontSize: 16, lineHeight: 1.2 }}>NOVASEGURIDAD</p>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>Sistema de Gestión</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+              {empresa?.logo_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={empresa.logo_url} alt={empresa.nombre || 'Logo'}
+                  style={{ maxWidth: 140, maxHeight: 56, objectFit: 'contain', marginBottom: 4 }} />
+              ) : (
+                <div style={{ background: '#ffffff', borderRadius: 8, padding: '8px 12px', marginBottom: 4 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo-novasep.png" alt="Nova Seguridad" style={{ width: 140, height: 'auto', display: 'block' }} />
+                </div>
+              )}
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, textAlign: 'center' }}>CRM Comercial</p>
             </div>
           )}
         </div>
@@ -320,7 +346,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <main style={{ flex: 1, padding: 24, overflow: 'auto' }}>
         {/* Top bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, padding: '10px 16px', background: 'rgba(255,255,255,0.08)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)', position: 'relative' }}>
-          <div />
+          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }} title="Versión del build cargada por tu navegador">
+            v{BUILD_VERSION.slice(0, 8)}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
             <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: 900, fontSize: 14 }}>
               {user.nombre[0]}{user.apellido[0]}
@@ -335,7 +363,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <button onClick={() => router.push('/dashboard')}
                 style={{
                   padding: '8px 20px', borderRadius: 8,
-                  background: '#1d4ed8', border: '1px solid #2563eb',
+                  background: '#1e3a8a', border: '1px solid #2563eb',
                   color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                 }}>
                 Menú Principal

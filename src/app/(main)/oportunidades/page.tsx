@@ -12,14 +12,15 @@ import { nextConsecutivo } from '@/shared/lib/consecutivo'
 import ReportPanel from '@/shared/components/report-panel'
 import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import { Seguimiento } from '@/shared/types/seguimiento'
-
-const today = todayColombia()
+import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
+import NumeroInput from '@/shared/components/numero-input'
+import { getCurrencyCode } from '@/shared/lib/format-money'
 
 const emptyOportunidad = (codigo: string, responsable: string): Oportunidad => ({
   id: '', codigo, nombre: '', cliente_id: '', cliente_nombre: '',
   contacto_id: '', contacto_nombre: '', valor_estimado: 0, tipo_moneda: 'Pesos Colombianos',
   probabilidad: 50, etapa: 'Prospección', origen: '', fecha_cierre_estimada: '',
-  responsable, observaciones: '', situacion: 'Abierta', fecha_registro: today, seguimientos: [],
+  responsable, observaciones: '', situacion: 'Abierta', fecha_registro: todayColombia(), seguimientos: [],
 })
 
 export default function OportunidadesPage() {
@@ -65,8 +66,10 @@ export default function OportunidadesPage() {
 
   const probColor = (p: number) => p >= 75 ? '#86efac' : p >= 50 ? '#fcd34d' : p >= 25 ? '#fdba74' : '#fca5a5'
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
   const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? '#1e3a8a' : 'rgba(255,255,255,0.15)', color: active ? '#ffffff' : 'rgba(255,255,255,0.7)', border: active ? '1px solid #2563eb' : '1px solid rgba(255,255,255,0.2)' })
   const refOptions = (table: string) => (refData[table as keyof typeof refData] || []).filter(r => r.situacion).map(r => r.descripcion)
 
@@ -79,7 +82,7 @@ export default function OportunidadesPage() {
       { label: 'Nombre', value: viewDetail.nombre },
       { label: 'Empresa', value: viewDetail.cliente_nombre },
       { label: 'Contacto', value: viewDetail.contacto_nombre },
-      { label: 'Valor Estimado', value: `$${fmtMoney(viewDetail.valor_estimado)}` },
+      { label: 'Valor Estimado', value: `${getCurrencyCode(viewDetail.tipo_moneda)} ${fmtMoney(viewDetail.valor_estimado)}` },
       { label: 'Moneda', value: viewDetail.tipo_moneda },
       { label: 'Probabilidad', value: `${viewDetail.probabilidad}%` },
       { label: 'Etapa', value: viewDetail.etapa },
@@ -131,15 +134,19 @@ export default function OportunidadesPage() {
           <h2 style={{ color: '#ffffff', fontSize: 18, fontWeight: 700, marginBottom: 20 }}>{selected.id ? 'Editar' : 'Nueva'} Oportunidad</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Código</label>
+              <label style={labelStyle}>Código</label>
               <input value={selected.codigo} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
             </div>
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Nombre Oportunidad *</label>
-              <input value={selected.nombre} onChange={e => setSelected({ ...selected, nombre: e.target.value })} required style={inputStyle} />
+            <div>
+              <label style={labelStyle}>Fecha de Registro</label>
+              <input value={fDate(selected.fecha_registro)} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Nombre Oportunidad *</label>
+              <input value={selected.nombre} onChange={e => setSelected({ ...selected, nombre: e.target.value.toUpperCase() })} required style={inputUpper} />
             </div>
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Empresa *</label>
+              <label style={labelStyle}>Empresa *</label>
               <select value={selected.cliente_id} onChange={e => {
                 const cli = clientes.find(c => c.id === e.target.value)
                 setSelected({ ...selected, cliente_id: e.target.value, cliente_nombre: cli?.razon_social || '', contacto_id: '', contacto_nombre: '' })
@@ -149,7 +156,7 @@ export default function OportunidadesPage() {
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Contacto</label>
+              <label style={labelStyle}>Contacto</label>
               <select value={selected.contacto_id} onChange={e => {
                 const con = contactosDelCliente.find(c => c.id === e.target.value)
                 setSelected({ ...selected, contacto_id: e.target.value, contacto_nombre: con ? `${con.nombre} ${con.apellido}` : '' })
@@ -159,48 +166,53 @@ export default function OportunidadesPage() {
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Valor Estimado *</label>
-              <input type="number" step="0.01" min="0" value={selected.valor_estimado || ''} onChange={e => setSelected({ ...selected, valor_estimado: parseFloat(e.target.value) || 0 })} required style={inputStyle} />
+              <label style={labelStyle}>Valor Estimado *</label>
+              <NumeroInput value={selected.valor_estimado} onChange={n => setSelected({ ...selected, valor_estimado: n })} decimales={2} prefijo={getCurrencyCode(selected.tipo_moneda)} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Moneda</label>
+              <label style={labelStyle}>Moneda</label>
               <select value={selected.tipo_moneda} onChange={e => setSelected({ ...selected, tipo_moneda: e.target.value })} style={inputStyle}>
                 {refOptions('tipo_moneda').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Probabilidad (%): {selected.probabilidad}%</label>
-              <input type="range" min="0" max="100" step="5" value={selected.probabilidad} onChange={e => setSelected({ ...selected, probabilidad: parseInt(e.target.value) })} style={{ width: '100%', accentColor: probColor(selected.probabilidad) }} />
+              <label style={labelStyle}>Probabilidad (1–100%)</label>
+              <NumeroInput
+                value={selected.probabilidad}
+                onChange={n => setSelected({ ...selected, probabilidad: Math.min(100, Math.max(0, Math.round(n))) })}
+                decimales={0}
+                style={{ ...inputStyle, color: probColor(selected.probabilidad), fontWeight: 800 }}
+              />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Etapa</label>
+              <label style={labelStyle}>Etapa</label>
               <select value={selected.etapa} onChange={e => setSelected({ ...selected, etapa: e.target.value })} style={inputStyle}>
                 {refOptions('etapa_oportunidad').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Origen</label>
+              <label style={labelStyle}>Origen</label>
               <select value={selected.origen} onChange={e => setSelected({ ...selected, origen: e.target.value })} style={inputStyle}>
                 <option value="">Seleccionar...</option>
                 {refOptions('origen_oportunidad').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha Cierre Estimada</label>
+              <label style={labelStyle}>Fecha Cierre Estimada</label>
               <input type="date" value={selected.fecha_cierre_estimada} onChange={e => setSelected({ ...selected, fecha_cierre_estimada: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Responsable</label>
+              <label style={labelStyle}>Responsable</label>
               <input value={selected.responsable} onChange={e => setSelected({ ...selected, responsable: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Situación</label>
+              <label style={labelStyle}>Situación</label>
               <select value={selected.situacion} onChange={e => setSelected({ ...selected, situacion: e.target.value })} style={inputStyle}>
                 {refOptions('situacion_oportunidad').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div style={{ gridColumn: 'span 3' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Observaciones</label>
+              <label style={labelStyle}>Observaciones</label>
               <textarea value={selected.observaciones} onChange={e => setSelected({ ...selected, observaciones: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
           </div>
@@ -234,12 +246,23 @@ export default function OportunidadesPage() {
   ]
   const reportRows = filtered.map(o => ({
     codigo: o.codigo, nombre: o.nombre, cliente_nombre: o.cliente_nombre,
-    valor: `$${fmtMoney(o.valor_estimado)}`, probabilidad: `${o.probabilidad}%`,
+    valor: o.valor_estimado, probabilidad: `${o.probabilidad}%`,
     etapa: o.etapa, cierre: fDate(o.fecha_cierre_estimada), situacion: o.situacion,
   }))
 
   return (
     <div>
+      {/* Backup / Restore — banner superior */}
+      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
+        <BackupRestoreButtons
+          modulo="oportunidades"
+          label="Oportunidades"
+          registros={oportunidades}
+          onClear={() => useOportunidadesStore.setState({ oportunidades: [] })}
+          onRestore={(rs) => useOportunidadesStore.setState({ oportunidades: rs })}
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Oportunidades</h1>
@@ -263,7 +286,7 @@ export default function OportunidadesPage() {
             <div key={col.etapa} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)', padding: 12, minWidth: 180 }}>
               <div style={{ marginBottom: 12, textAlign: 'center' }}>
                 <p style={{ color: '#ffffff', fontSize: 13, fontWeight: 700 }}>{col.etapa}</p>
-                <p style={{ color: '#4ade80', fontSize: 12 }}>{col.items.length} | ${fmtMoney(col.total)}</p>
+                <p style={{ color: '#4ade80', fontSize: 12 }}>{col.items.length} | {getCurrencyCode(col.items[0]?.tipo_moneda)} {fmtMoney(col.total)}</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {col.items.map(o => (
@@ -271,7 +294,7 @@ export default function OportunidadesPage() {
                     <p style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{o.nombre}</p>
                     <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>{o.cliente_nombre}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                      <span style={{ color: '#34d399', fontSize: 11, fontWeight: 600 }}>${fmtMoney(o.valor_estimado)}</span>
+                      <span style={{ color: '#34d399', fontSize: 11, fontWeight: 600 }}>{getCurrencyCode(o.tipo_moneda)} {fmtMoney(o.valor_estimado)}</span>
                       <span style={{ color: probColor(o.probabilidad), fontSize: 11 }}>{o.probabilidad}%</span>
                     </div>
                   </div>
@@ -303,7 +326,7 @@ export default function OportunidadesPage() {
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#4ade80', fontSize: 13, fontFamily: 'monospace' }}>{o.codigo}</td>
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: 13 }}>{o.nombre}</td>
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{o.cliente_nombre}</td>
-                    <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#34d399', fontSize: 13, fontWeight: 600 }}>${fmtMoney(o.valor_estimado)}</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#34d399', fontSize: 13, fontWeight: 600 }}>{getCurrencyCode(o.tipo_moneda)} {fmtMoney(o.valor_estimado)}</td>
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: probColor(o.probabilidad), fontSize: 13, fontWeight: 600 }}>{o.probabilidad}%</td>
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{o.etapa}</td>
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -330,7 +353,8 @@ export default function OportunidadesPage() {
           filters={[
             { label: 'Situación', key: 'situacion', options: [...new Set(oportunidades.map(o => o.situacion).filter(Boolean))] },
             { label: 'Etapa', key: 'etapa', options: [...new Set(oportunidades.map(o => o.etapa).filter(Boolean))] },
-          ]} />
+          ]}
+          summableKeys={['valor']} />
       )}
     </div>
   )

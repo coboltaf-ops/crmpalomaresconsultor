@@ -18,11 +18,14 @@ interface ModulosState {
 const defaultModulos: Modulo[] = [
   // ── Módulos Principales ──
   { id: 'dashboard', label: 'Dashboard', icon: '📊', href: '/dashboard', activo: true, grupo: 'principal' },
+  { id: 'agente', label: 'Agente', icon: '🤖', href: '/agente', activo: true, grupo: 'principal' },
   { id: 'clientes', label: 'Empresas', icon: '🏢', href: '/clientes', activo: true, grupo: 'principal' },
   { id: 'contactos', label: 'Contactos', icon: '👤', href: '/contactos', activo: true, grupo: 'principal' },
+  { id: 'centros-costo', label: 'Centros de Costo', icon: '🏷️', href: '/centros-costo', activo: true, grupo: 'principal' },
   { id: 'oportunidades', label: 'Oportunidades', icon: '🎯', href: '/oportunidades', activo: true, grupo: 'principal' },
-  { id: 'productos', label: 'Productos', icon: '📦', href: '/productos', activo: true, grupo: 'principal' },
-  { id: 'cotizaciones', label: 'Cotizaciones', icon: '📋', href: '/cotizaciones', activo: true, grupo: 'principal' },
+  { id: 'productos', label: 'Productos y Servicios', icon: '📦', href: '/productos', activo: true, grupo: 'principal' },
+  { id: 'cotizaciones', label: 'Cotizaciones', icon: '📋', href: '/cotizaciones-v2', activo: true, grupo: 'principal' },
+  { id: 'contratos', label: 'Contratos de Servicio', icon: '📑', href: '/contratos', activo: true, grupo: 'principal' },
   { id: 'prospectos', label: 'Prospectos', icon: '🧲', href: '/prospectos', activo: true, grupo: 'principal' },
   { id: 'pqrs', label: 'PQRS', icon: '📩', href: '/pqrs', activo: true, grupo: 'principal' },
   { id: 'correos', label: 'Correos Enviados', icon: '📧', href: '/correos', activo: true, grupo: 'principal' },
@@ -37,6 +40,8 @@ const defaultModulos: Modulo[] = [
   { id: 'disenador-correos', label: 'Diseñador Correos', icon: '🎨', href: '/disenador-correos', activo: true, grupo: 'configuracion' },
   { id: 'modulos', label: 'Módulos', icon: '🧩', href: '/modulos', activo: true, grupo: 'configuracion' },
   { id: 'lineas-servicio', label: 'Líneas de Servicio', icon: '🛡️', href: '/lineas-servicio', activo: true, grupo: 'configuracion' },
+  { id: 'personal', label: 'Personal Empresa', icon: '👥', href: '/personal', activo: true, grupo: 'configuracion' },
+  { id: 'auditoria', label: 'Auditoría', icon: '🔍', href: '/auditoria', activo: true, grupo: 'configuracion' },
 ]
 
 export const useModulosStore = create<ModulosState>()(

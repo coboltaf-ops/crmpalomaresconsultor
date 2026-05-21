@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { readList, writeList } from '@/shared/lib/kv-store'
+import { getSmtpConfig } from '@/shared/lib/smtp'
 
 const KV_KEY = 'nova-prospectos-externos'
 
@@ -77,11 +78,12 @@ export async function POST(req: NextRequest) {
 
     // Enviar email de confirmación al prospecto
     try {
+      const smtp = await getSmtpConfig()
       const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '465'),
-        secure: true,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        auth: { user: smtp.user, pass: smtp.pass },
       })
 
       const html = `

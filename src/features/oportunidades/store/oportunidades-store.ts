@@ -40,6 +40,21 @@ export const useOportunidadesStore = create<OportunidadesState>()(
       updateOportunidad: (id, o) => set((s) => ({ oportunidades: s.oportunidades.map((r) => r.id === id ? { ...r, ...o } : r) })),
       deleteOportunidad: (id) => set((s) => ({ oportunidades: s.oportunidades.filter((r) => r.id !== id) })),
     }),
-    { name: 'crm-oportunidades-storage' }
+    {
+      name: 'crm-oportunidades-storage',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as { oportunidades?: Oportunidad[] }
+        if (version < 1 && Array.isArray(state.oportunidades)) {
+          state.oportunidades = state.oportunidades.map(r => ({
+            ...r,
+            nombre: (r.nombre || '').toUpperCase(),
+            cliente_nombre: (r.cliente_nombre || '').toUpperCase(),
+            contacto_nombre: (r.contacto_nombre || '').toUpperCase(),
+          }))
+        }
+        return state as OportunidadesState
+      },
+    }
   )
 )

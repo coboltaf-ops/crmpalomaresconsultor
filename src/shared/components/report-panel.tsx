@@ -14,20 +14,36 @@ interface Props {
 export default function ReportPanel({ title, columns, rows, filters = [], summableKeys = [] }: Props) {
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
   const [selectedCols, setSelectedCols] = useState<string[]>(columns.map(c => c.key))
+  const [tituloEditable, setTituloEditable] = useState(title)
   const empresa = useEmpresaStore(s => s.empresas[0])
 
   const filtered = rows.filter(r => Object.entries(activeFilters).every(([k, v]) => !v || String(r[k]) === v))
   const visibleCols = columns.filter(c => selectedCols.includes(c.key))
 
   const opts = {
-    title, columns: visibleCols, rows: filtered, filename: title.replace(/\s+/g, '_'),
+    title: tituloEditable || title,
+    columns: visibleCols,
+    rows: filtered,
+    filename: (tituloEditable || title).replace(/\s+/g, '_'),
     empresa: empresa ? { nombre: empresa.nombre, nro_documento: empresa.nro_documento, direccion: empresa.direccion, ciudad: empresa.ciudad } : undefined,
+    summableKeys,
   }
 
   const inputStyle: React.CSSProperties = { background: '#1e3a5f', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', padding: '6px 10px', borderRadius: 8, fontSize: 13 }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Título editable */}
+      <div>
+        <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 700, marginBottom: 6, display: 'block' }}>📄 Título del reporte</label>
+        <input
+          value={tituloEditable}
+          onChange={e => setTituloEditable(e.target.value)}
+          placeholder={title}
+          style={{ ...inputStyle, width: '100%', maxWidth: 500, fontSize: 14, padding: '10px 14px' }}
+        />
+      </div>
+
       {/* Filters */}
       {filters.length > 0 && (
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -64,13 +80,13 @@ export default function ReportPanel({ title, columns, rows, filters = [], summab
             <tbody>
               {filtered.slice(0, 50).map((r, i) => (
                 <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent' }}>
-                  {visibleCols.map(c => <td key={c.key} style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{r[c.key]}</td>)}
+                  {visibleCols.map(c => <td key={c.key} style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{typeof r[c.key] === 'number' ? (r[c.key] as number).toLocaleString('en-US') : r[c.key]}</td>)}
                 </tr>
               ))}
               {summableKeys.length > 0 && (
                 <tr style={{ background: 'rgba(255,255,255,0.1)', fontWeight: 700 }}>
                   {visibleCols.map(c => <td key={c.key} style={{ padding: '10px 12px', fontSize: 12, color: '#4ade80', borderTop: '2px solid rgba(34,197,94,0.3)' }}>
-                    {summableKeys.includes(c.key) ? filtered.reduce((s, r) => s + (typeof r[c.key] === 'number' ? r[c.key] as number : 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) : c === visibleCols[0] ? 'TOTALES' : ''}
+                    {summableKeys.includes(c.key) ? filtered.reduce((s, r) => s + (typeof r[c.key] === 'number' ? r[c.key] as number : 0), 0).toLocaleString('en-US') : c === visibleCols[0] ? 'TOTALES' : ''}
                   </td>)}
                 </tr>
               )}

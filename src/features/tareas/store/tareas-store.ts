@@ -57,6 +57,19 @@ export const useTareasStore = create<TareasState>()(
     }),
     {
       name: 'crm-tareas-storage',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as { tareas?: Tarea[] }
+        if (version < 1 && Array.isArray(state.tareas)) {
+          state.tareas = state.tareas.map(t => ({
+            ...t,
+            persona_asigna: (t.persona_asigna || '').toUpperCase(),
+            persona_ejecuta: (t.persona_ejecuta || '').toUpperCase(),
+            descripcion: (t.descripcion || '').toUpperCase(),
+          }))
+        }
+        return state as TareasState
+      },
       merge: (persisted, current) => {
         const p = persisted as Partial<TareasState>
         const saved = { ...current, ...p }

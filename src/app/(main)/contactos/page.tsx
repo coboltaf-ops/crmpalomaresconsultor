@@ -1,4 +1,5 @@
 'use client'
+import { logAudit, computarDiff } from '@/shared/lib/audit'
 import { useState, useEffect } from 'react'
 import { useContactosStore, Contacto } from '@/features/contactos/store/contactos-store'
 import { useClientesStore } from '@/features/clientes/store/clientes-store'
@@ -12,13 +13,14 @@ import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import DocumentosPanel from '@/shared/components/documentos-panel'
 import { useAsistenteStore } from '@/shared/stores/asistente-store'
 import { Seguimiento } from '@/shared/types/seguimiento'
+import WhatsAppButton from '@/shared/components/whatsapp-button'
+import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 
-const today = todayColombia()
 
 const emptyContacto = (codigo: string): Contacto => ({
   id: '', codigo, cliente_id: '', cliente_nombre: '',
   nombre: '', apellido: '', cargo: '', departamento: '', telefono: '', celular: '',
-  email: '', fecha_nacimiento: '', nivel_influencia: '', es_principal: false, observaciones: '', situacion: 'Activo', fecha_registro: today, seguimientos: [],
+  email: '', fecha_nacimiento: '', nivel_influencia: '', es_principal: false, observaciones: '', situacion: 'Activo', fecha_registro: todayColombia(), seguimientos: [],
 })
 
 export default function ContactosPage() {
@@ -48,13 +50,20 @@ export default function ContactosPage() {
     return matchSearch && matchCliente
   })
 
+  const auditParams = () => ({
+    usuario: currentUser?.usuario || 'desconocido',
+    usuario_nombre: `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`.trim(),
+    rol: currentUser?.rol || '',
+    modulo: 'contactos',
+  })
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
     const cli = clientes.find(c => c.id === selected.cliente_id)
     const toSave = { ...selected, cliente_nombre: cli?.razon_social || selected.cliente_nombre }
     if (toSave.id) {
-      updateContacto(toSave.id, toSave)
+      const _anterior = contactos.find(x => x.id === toSave.id); updateContacto(toSave.id, toSave); logAudit({ ...auditParams(), accion: "MODIFICAR", registro_codigo: toSave.codigo, registro_nombre: `${toSave.nombre} ${toSave.apellido}`, detalle: computarDiff(_anterior as unknown as Record<string, unknown>, toSave as unknown as Record<string, unknown>) })
     } else {
       addContacto({ ...toSave, id: crypto.randomUUID() })
     }
@@ -69,8 +78,10 @@ export default function ContactosPage() {
     return map[s] || {}
   }
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
   const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? '#1e3a8a' : 'rgba(255,255,255,0.15)', color: active ? '#ffffff' : 'rgba(255,255,255,0.7)', border: active ? '1px solid #2563eb' : '1px solid rgba(255,255,255,0.2)' })
 
   // View detail
@@ -135,11 +146,15 @@ export default function ContactosPage() {
           <h2 style={{ color: '#ffffff', fontSize: 18, fontWeight: 700, marginBottom: 20 }}>{selected.id ? 'Editar' : 'Nuevo'} Contacto</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Código</label>
+              <label style={labelStyle}>Código</label>
               <input value={selected.codigo} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
             </div>
+            <div>
+              <label style={labelStyle}>Fecha de Registro</label>
+              <input value={fDate(selected.fecha_registro)} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
+            </div>
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Empresa *</label>
+              <label style={labelStyle}>Empresa *</label>
               <select value={selected.cliente_id} onChange={e => {
                 const cli = clientes.find(c => c.id === e.target.value)
                 setSelected({ ...selected, cliente_id: e.target.value, cliente_nombre: cli?.razon_social || '' })
@@ -149,46 +164,52 @@ export default function ContactosPage() {
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Nombre *</label>
-              <input value={selected.nombre} onChange={e => setSelected({ ...selected, nombre: e.target.value })} required style={inputStyle} />
+              <label style={labelStyle}>Nombre *</label>
+              <input value={selected.nombre} onChange={e => setSelected({ ...selected, nombre: e.target.value.toUpperCase() })} required style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Apellido *</label>
-              <input value={selected.apellido} onChange={e => setSelected({ ...selected, apellido: e.target.value })} required style={inputStyle} />
+              <label style={labelStyle}>Apellido *</label>
+              <input value={selected.apellido} onChange={e => setSelected({ ...selected, apellido: e.target.value.toUpperCase() })} required style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Cargo</label>
-              <input value={selected.cargo} onChange={e => setSelected({ ...selected, cargo: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Cargo</label>
+              <input value={selected.cargo} onChange={e => setSelected({ ...selected, cargo: e.target.value.toUpperCase() })} style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Departamento</label>
-              <input value={selected.departamento} onChange={e => setSelected({ ...selected, departamento: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Departamento</label>
+              <input value={selected.departamento} onChange={e => setSelected({ ...selected, departamento: e.target.value.toUpperCase() })} style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Teléfono</label>
-              <input value={selected.telefono} onChange={e => setSelected({ ...selected, telefono: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Teléfono</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={selected.telefono} onChange={e => setSelected({ ...selected, telefono: e.target.value })} style={inputStyle} />
+                <WhatsAppButton telefono={selected.telefono} nombre={`${selected.nombre} ${selected.apellido}`.trim()} compacto />
+              </div>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Celular</label>
-              <input value={selected.celular} onChange={e => setSelected({ ...selected, celular: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Celular</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={selected.celular} onChange={e => setSelected({ ...selected, celular: e.target.value })} style={inputStyle} />
+                <WhatsAppButton telefono={selected.celular} nombre={`${selected.nombre} ${selected.apellido}`.trim()} compacto />
+              </div>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Email</label>
+              <label style={labelStyle}>Email</label>
               <input type="email" value={selected.email} onChange={e => setSelected({ ...selected, email: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha Nacimiento</label>
+              <label style={labelStyle}>Fecha Nacimiento</label>
               <input type="date" value={selected.fecha_nacimiento} onChange={e => setSelected({ ...selected, fecha_nacimiento: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Nivel de Influencia</label>
+              <label style={labelStyle}>Nivel de Influencia</label>
               <select value={selected.nivel_influencia} onChange={e => setSelected({ ...selected, nivel_influencia: e.target.value })} style={inputStyle}>
                 <option value="">Seleccionar...</option>
                 {refOptions('nivel_influencia').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Situación</label>
+              <label style={labelStyle}>Situación</label>
               <select value={selected.situacion} onChange={e => setSelected({ ...selected, situacion: e.target.value })} style={inputStyle}>
                 {refOptions('situacion_contacto').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -198,8 +219,8 @@ export default function ContactosPage() {
               <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Contacto Principal</label>
             </div>
             <div style={{ gridColumn: 'span 3' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Observaciones</label>
-              <textarea value={selected.observaciones} onChange={e => setSelected({ ...selected, observaciones: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+              <label style={labelStyle}>Observaciones</label>
+              <textarea value={selected.observaciones} onChange={e => setSelected({ ...selected, observaciones: e.target.value.toUpperCase() })} rows={3} style={{ ...inputUpper, resize: 'vertical' }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
@@ -233,6 +254,18 @@ export default function ContactosPage() {
 
   return (
     <div>
+
+      {/* Backup / Restore — banner superior, siempre visible */}
+      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
+        <BackupRestoreButtons
+          modulo="contactos"
+          label="Contactos"
+          registros={contactos}
+          onClear={() => useContactosStore.setState({ contactos: [] })}
+          onRestore={(rs) => useContactosStore.setState({ contactos: rs })}
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Contactos</h1>
@@ -286,7 +319,7 @@ export default function ContactosPage() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button onClick={() => setViewDetail(c)} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#ea580c', color: '#ffffff', border: '1px solid #f97316' }}>Ver</button>
                         {permisos.editar && <button onClick={() => { setSelected(c); setIsForm(true) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#15803d', color: '#ffffff', border: '1px solid #16a34a' }}>Editar</button>}
-                        {permisos.eliminar && <button onClick={() => { if (confirm(`¿Eliminar contacto "${c.nombre} ${c.apellido}"?`)) deleteContacto(c.id) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#dc2626', color: '#ffffff', border: '1px solid #ef4444' }}>Eliminar</button>}
+                        {permisos.eliminar && <button onClick={() => { if (confirm(`¿Eliminar contacto "${c.nombre} ${c.apellido}"?`)) deleteContacto(c.id); logAudit({ ...auditParams(), accion: "ELIMINAR", registro_codigo: c.codigo, registro_nombre: `${c.nombre} ${c.apellido}` }) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#dc2626', color: '#ffffff', border: '1px solid #ef4444' }}>Eliminar</button>}
                       </div>
                     </td>
                   </tr>
@@ -301,6 +334,6 @@ export default function ContactosPage() {
       {tab === 'reportes' && (
         <ReportPanel title="Reporte de Contactos" columns={reportColumns} rows={reportRows} filters={reportFilters} />
       )}
-    </div>
+</div>
   )
 }

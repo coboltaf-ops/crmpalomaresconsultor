@@ -1,4 +1,5 @@
 'use client'
+import { logAudit, computarDiff } from '@/shared/lib/audit'
 import { useState, useEffect } from 'react'
 import { usePQRSStore, PQRS } from '@/features/pqrs/store/pqrs-store'
 import SeguimientoPanel from '@/shared/components/seguimiento-panel'
@@ -13,6 +14,8 @@ import { usePermisos } from '@/shared/hooks/use-permisos'
 import { fDate, todayColombia } from '@/shared/lib/format-date'
 import { nextConsecutivo } from '@/shared/lib/consecutivo'
 import ReportPanel from '@/shared/components/report-panel'
+import WhatsAppButton from '@/shared/components/whatsapp-button'
+import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 
 interface PQRSExterna {
   id: string; radicado: string; fecha: string; tipo: string; prioridad: string
@@ -21,15 +24,14 @@ interface PQRSExterna {
   detalle_incidencia: string; fecha_registro: string; hora_registro: string; importada: boolean
 }
 
-const today = todayColombia()
 
 const emptyPQRS = (codigo: string, nro: number, responsable: string): PQRS => ({
-  id: '', codigo, nro, tipo: 'Petición',
+  id: '', codigo, nro, tipo: 'Petición', incidencia: '',
   prioridad: 'Media', cliente_id: '', cliente_nombre: '', contacto_id: '', contacto_nombre: '',
   asunto: '', descripcion: '',
-  fecha_aviso: today, hora_aviso: '', persona_avisa: '', movil_avisa: '',
+  fecha_aviso: todayColombia(), hora_aviso: '', persona_avisa: '', movil_avisa: '',
   persona_caso: '', movil_caso: '', detalle_incidencia: '',
-  responsable, fecha_registro: today, fecha_cierre: '',
+  responsable, fecha_registro: todayColombia(), fecha_cierre: '',
   seguimientos: [], situacion: 'Abierta',
 })
 
@@ -82,7 +84,7 @@ export default function PQRSPage() {
     const empresaId = cliLocal?.id || ext.cliente_id || ''
     const nueva: PQRS = {
       id: crypto.randomUUID(), codigo: nc.codigo, nro: nc.nro,
-      tipo: ext.tipo, prioridad: ext.prioridad,
+      tipo: ext.tipo, incidencia: '', prioridad: ext.prioridad,
       cliente_id: empresaId, cliente_nombre: empresaNombre,
       contacto_id: '', contacto_nombre: '',
       asunto: ext.detalle_incidencia.substring(0, 80), descripcion: ext.detalle_incidencia,
@@ -116,13 +118,20 @@ export default function PQRSPage() {
     p.cliente_nombre.toLowerCase().includes(search.toLowerCase())
   )
 
+  const auditParams = () => ({
+    usuario: currentUser?.usuario || 'desconocido',
+    usuario_nombre: `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`.trim(),
+    rol: currentUser?.rol || '',
+    modulo: 'pqrs',
+  })
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
     const cli = clientes.find(c => c.id === selected.cliente_id)
     const con = allContactos.find(c => c.id === selected.contacto_id)
     const toSave = { ...selected, cliente_nombre: cli?.razon_social || selected.cliente_nombre, contacto_nombre: con ? `${con.nombre} ${con.apellido}` : selected.contacto_nombre }
-    if (toSave.id) { updatePQRS(toSave.id, toSave) }
+    if (toSave.id) { const _anterior = pqrs.find(x => x.id === toSave.id); updatePQRS(toSave.id, toSave); logAudit({ ...auditParams(), accion: "MODIFICAR", registro_codigo: toSave.codigo, registro_nombre: toSave.asunto, detalle: computarDiff(_anterior as unknown as Record<string, unknown>, toSave as unknown as Record<string, unknown>) }) }
     else { addPQRS({ ...toSave, id: crypto.randomUUID() }) }
     setIsForm(false); setSelected(null)
   }
@@ -154,8 +163,10 @@ export default function PQRSPage() {
     return map[t] || '📩'
   }
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
   const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? '#1e3a8a' : 'rgba(255,255,255,0.15)', color: active ? '#ffffff' : 'rgba(255,255,255,0.7)', border: active ? '1px solid #2563eb' : '1px solid rgba(255,255,255,0.2)' })
   const refOptions = (table: string) => (refData[table as keyof typeof refData] || []).filter(r => r.situacion).map(r => r.descripcion)
   const contactosDelCliente = selected ? allContactos.filter(c => c.cliente_id === selected.cliente_id) : []
@@ -210,7 +221,7 @@ export default function PQRSPage() {
               )}
               {permisos.editar && viewDetail.situacion !== 'Cerrada' && (
                 <button onClick={() => {
-                  const updated = { ...viewDetail, situacion: 'Cerrada', fecha_cierre: today }
+                  const updated = { ...viewDetail, situacion: 'Cerrada', fecha_cierre: todayColombia() }
                   updatePQRS(viewDetail.id, updated); setViewDetail(updated)
                 }} style={{ ...btnStyle, background: '#15803d', color: '#ffffff', border: '1px solid #16a34a' }}>Cerrar PQRS</button>
               )}
@@ -247,21 +258,28 @@ export default function PQRSPage() {
           <h2 style={{ color: '#ffffff', fontSize: 18, fontWeight: 700, marginBottom: 20 }}>{selected.id ? 'Editar' : 'Nueva'} PQRS</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Código</label>
+              <label style={labelStyle}>Código</label>
               <input value={selected.codigo} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha</label>
-              <input type="date" value={selected.fecha_registro} onChange={e => setSelected({ ...selected, fecha_registro: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Fecha de Registro</label>
+              <input value={fDate(selected.fecha_registro)} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Tipo *</label>
-              <select value={selected.tipo} onChange={e => setSelected({ ...selected, tipo: e.target.value })} style={inputStyle}>
+              <label style={labelStyle}>Tipo *</label>
+              <select value={selected.tipo || ''} onChange={e => setSelected({ ...selected, tipo: e.target.value })} style={inputStyle}>
                 {refOptions('tipo_pqrs').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Empresa *</label>
+              <label style={labelStyle}>Incidencia</label>
+              <select value={selected.incidencia || ''} onChange={e => setSelected({ ...selected, incidencia: e.target.value.toUpperCase() })} style={inputStyle}>
+                <option value="">Seleccionar...</option>
+                {refOptions('incidencias').map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={labelStyle}>Empresa *</label>
               <select value={selected.cliente_id} onChange={e => {
                 const cli = clientes.find(c => c.id === e.target.value)
                 setSelected({ ...selected, cliente_id: e.target.value, cliente_nombre: cli?.razon_social || '', contacto_id: '', contacto_nombre: '' })
@@ -271,7 +289,7 @@ export default function PQRSPage() {
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Contacto</label>
+              <label style={labelStyle}>Contacto</label>
               <select value={selected.contacto_id} onChange={e => {
                 const con = contactosDelCliente.find(c => c.id === e.target.value)
                 setSelected({ ...selected, contacto_id: e.target.value, contacto_nombre: con ? `${con.nombre} ${con.apellido}` : '' })
@@ -281,41 +299,47 @@ export default function PQRSPage() {
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha Aviso Empresa</label>
+              <label style={labelStyle}>Fecha Aviso Empresa</label>
               <input type="date" value={selected.fecha_aviso} onChange={e => setSelected({ ...selected, fecha_aviso: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Hora Aviso</label>
+              <label style={labelStyle}>Hora Aviso</label>
               <input type="time" value={selected.hora_aviso} onChange={e => setSelected({ ...selected, hora_aviso: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Persona que Avisa</label>
-              <input value={selected.persona_avisa} onChange={e => setSelected({ ...selected, persona_avisa: e.target.value })} placeholder="Nombre de quien avisa..." style={inputStyle} />
+              <label style={labelStyle}>Persona que Avisa</label>
+              <input value={selected.persona_avisa} onChange={e => setSelected({ ...selected, persona_avisa: e.target.value.toUpperCase() })} placeholder="Nombre de quien avisa..." style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Móvil que Avisa</label>
-              <input value={selected.movil_avisa} onChange={e => setSelected({ ...selected, movil_avisa: e.target.value })} placeholder="Teléfono móvil..." style={inputStyle} />
+              <label style={labelStyle}>Móvil que Avisa</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={selected.movil_avisa} onChange={e => setSelected({ ...selected, movil_avisa: e.target.value })} placeholder="Teléfono móvil..." style={inputStyle} />
+                <WhatsAppButton telefono={selected.movil_avisa} nombre={selected.persona_avisa} compacto />
+              </div>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Persona que Recibe</label>
-              <input value={selected.persona_caso} onChange={e => setSelected({ ...selected, persona_caso: e.target.value })} placeholder="Nombre de quien recibe..." style={inputStyle} />
+              <label style={labelStyle}>Persona que Recibe</label>
+              <input value={selected.persona_caso} onChange={e => setSelected({ ...selected, persona_caso: e.target.value.toUpperCase() })} placeholder="Nombre de quien recibe..." style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Móvil Recibe</label>
-              <input value={selected.movil_caso} onChange={e => setSelected({ ...selected, movil_caso: e.target.value })} placeholder="Teléfono móvil..." style={inputStyle} />
+              <label style={labelStyle}>Móvil Recibe</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={selected.movil_caso} onChange={e => setSelected({ ...selected, movil_caso: e.target.value })} placeholder="Teléfono móvil..." style={inputStyle} />
+                <WhatsAppButton telefono={selected.movil_caso} nombre={selected.persona_caso} compacto />
+              </div>
             </div>
             <div style={{ gridColumn: 'span 3' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Detalle de la Incidencia</label>
-              <textarea value={selected.detalle_incidencia} onChange={e => setSelected({ ...selected, detalle_incidencia: e.target.value })} rows={4} style={{ ...inputStyle, resize: 'vertical' }} placeholder="Describir la incidencia..." />
+              <label style={labelStyle}>Detalle de la Incidencia</label>
+              <textarea value={selected.detalle_incidencia} onChange={e => setSelected({ ...selected, detalle_incidencia: e.target.value.toUpperCase() })} rows={4} style={{ ...inputUpper, resize: 'vertical' }} placeholder="Describir la incidencia..." />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Prioridad</label>
+              <label style={labelStyle}>Prioridad</label>
               <select value={selected.prioridad} onChange={e => setSelected({ ...selected, prioridad: e.target.value })} style={inputStyle}>
                 {refOptions('prioridad_pqrs').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Situación</label>
+              <label style={labelStyle}>Situación</label>
               <select value={selected.situacion} onChange={e => setSelected({ ...selected, situacion: e.target.value })} style={inputStyle}>
                 {refOptions('situacion_pqrs').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
@@ -348,6 +372,18 @@ export default function PQRSPage() {
   // ── MAIN VIEW ──
   return (
     <div>
+
+      {/* Backup / Restore — banner superior, siempre visible */}
+      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
+        <BackupRestoreButtons
+          modulo="pqrs"
+          label="PQRS"
+          registros={pqrs}
+          onClear={() => usePQRSStore.setState({ pqrs: [] })}
+          onRestore={(rs) => usePQRSStore.setState({ pqrs: rs })}
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>PQRS</h1>
@@ -445,7 +481,7 @@ export default function PQRSPage() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button onClick={() => setViewDetail(p)} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#ea580c', color: '#ffffff', border: '1px solid #f97316' }}>Ver</button>
                         {permisos.editar && p.situacion !== 'Cerrada' && <button onClick={() => { setSelected(p); setIsForm(true) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#15803d', color: '#ffffff', border: '1px solid #16a34a' }}>Editar</button>}
-                        {permisos.eliminar && <button onClick={() => { if (confirm(`¿Eliminar ${p.codigo}?`)) deletePQRS(p.id) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#dc2626', color: '#ffffff', border: '1px solid #ef4444' }}>Eliminar</button>}
+                        {permisos.eliminar && <button onClick={() => { if (confirm(`¿Eliminar ${p.codigo}?`)) deletePQRS(p.id); logAudit({ ...auditParams(), accion: "ELIMINAR", registro_codigo: p.codigo, registro_nombre: p.asunto }) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#dc2626', color: '#ffffff', border: '1px solid #ef4444' }}>Eliminar</button>}
                       </div>
                     </td>
                   </tr>
@@ -465,6 +501,6 @@ export default function PQRSPage() {
             { label: 'Situación', key: 'situacion', options: [...new Set(pqrs.map(p => p.situacion).filter(Boolean))] },
           ]} />
       )}
-    </div>
+</div>
   )
 }

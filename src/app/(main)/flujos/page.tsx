@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useFlujosStore, Flujo, Condicion, Accion, MODULOS_FLUJO, TRIGGERS, OPERADORES, TIPOS_ACCION } from '@/features/flujos/store/flujos-store'
 import { useCurrentUserStore } from '@/features/usuarios-gestion/store/current-user-store'
 import { useReferenceStore } from '@/features/referencias/store/reference-store'
+import NumeroInput from '@/shared/components/numero-input'
 
 function todayCO() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
 function fDateTime(d: string) {
@@ -38,7 +39,7 @@ export default function FlujosPage() {
   if (!user) return null
 
   const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
-  const inputStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none', width: '100%' }
+  const inputStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none', boxSizing: 'border-box', height: 36, width: '100%' }
   const labelStyle: React.CSSProperties = { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginBottom: 4, display: 'block' }
   const cardStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,255,255,0.1)' }
   const nodeStyle = (color: string): React.CSSProperties => ({ background: `${color}15`, border: `2px solid ${color}40`, borderRadius: 12, padding: '16px 20px', position: 'relative' as const })
@@ -418,7 +419,7 @@ export default function FlujosPage() {
                           {personas.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
                       </div>
-                      <div><label style={labelStyle}>Días de plazo</label><input type="number" value={a.config.dias_plazo || ''} onChange={e => updateAccionConfig(i, 'dias_plazo', e.target.value)} placeholder="3" style={inputStyle} /></div>
+                      <div><label style={labelStyle}>Días de plazo</label><NumeroInput value={Number(a.config.dias_plazo) || 0} onChange={n => updateAccionConfig(i, 'dias_plazo', String(Math.max(0, Math.round(n))))} decimales={0} placeholder="3" style={inputStyle} /></div>
                       <div style={{ gridColumn: 'span 2' }}><label style={labelStyle}>Descripción tarea</label><input value={a.config.descripcion || ''} onChange={e => updateAccionConfig(i, 'descripcion', e.target.value)} placeholder="Seguimiento a {{codigo}}" style={inputStyle} /></div>
                     </div>
                   )}

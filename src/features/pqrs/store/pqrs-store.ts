@@ -9,6 +9,7 @@ export interface PQRS {
   codigo: string
   nro: number
   tipo: string
+  incidencia: string
   prioridad: string
   cliente_id: string
   cliente_nombre: string
@@ -45,6 +46,26 @@ export const usePQRSStore = create<PQRSState>()(
       updatePQRS: (id, p) => set((s) => ({ pqrs: s.pqrs.map((r) => r.id === id ? { ...r, ...p } : r) })),
       deletePQRS: (id) => set((s) => ({ pqrs: s.pqrs.filter((r) => r.id !== id) })),
     }),
-    { name: 'crm-pqrs-storage' }
+    {
+      name: 'crm-pqrs-storage',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as { pqrs?: PQRS[] }
+        if (version < 1 && Array.isArray(state.pqrs)) {
+          state.pqrs = state.pqrs.map(r => ({
+            ...r,
+            cliente_nombre: (r.cliente_nombre || '').toUpperCase(),
+            contacto_nombre: (r.contacto_nombre || '').toUpperCase(),
+            persona_avisa: (r.persona_avisa || '').toUpperCase(),
+            persona_caso: (r.persona_caso || '').toUpperCase(),
+            detalle_incidencia: (r.detalle_incidencia || '').toUpperCase(),
+            asunto: (r.asunto || '').toUpperCase(),
+            descripcion: (r.descripcion || '').toUpperCase(),
+            responsable: (r.responsable || '').toUpperCase(),
+          }))
+        }
+        return state as PQRSState
+      },
+    }
   )
 )

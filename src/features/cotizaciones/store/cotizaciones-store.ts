@@ -9,6 +9,7 @@ export interface DetalleCotizacion {
   producto_id: string
   codigo_producto: string
   descripcion: string
+  descripcion_extendida: string
   cantidad: number
   precio_unitario: number
   unidad_medida: string
@@ -24,6 +25,10 @@ export interface Cotizacion {
   linea_servicio_codigo: string
   linea_servicio_nombre: string
   pct_aiu: number
+  /** Tipo de servicio resumido para la cotización (un solo valor general). */
+  tipo_servicio: string
+  /** Número de cotización interno de la empresa (manual, distinto al consecutivo auto). */
+  nro_cotizacion_interno: string
   fecha_emision: string
   fecha_vencimiento: string
   cliente_id: string
@@ -35,6 +40,8 @@ export interface Cotizacion {
   tipo_moneda: string
   condicion_pago: string
   pct_impuesto: number
+  /** Impuesto de Industria y Comercio (retención). Se resta del total. */
+  pct_ica: number
   observaciones: string
   detalles: DetalleCotizacion[]
   situacion: string
@@ -61,7 +68,7 @@ export const useCotizacionesStore = create<CotizacionesState>()(
     }),
     {
       name: 'crm-cotizaciones-storage',
-      version: 2,
+      version: 6,
       migrate: (persisted: unknown, version: number) => {
         const state = (persisted ?? {}) as { cotizaciones?: Partial<Cotizacion>[] }
         if (version < 2 && Array.isArray(state.cotizaciones)) {
@@ -70,6 +77,33 @@ export const useCotizacionesStore = create<CotizacionesState>()(
             linea_servicio_codigo: '',
             linea_servicio_nombre: '',
             pct_aiu: 0,
+            ...c,
+          })) as Cotizacion[]
+        }
+        if (version < 3 && Array.isArray(state.cotizaciones)) {
+          state.cotizaciones = state.cotizaciones.map((c) => ({
+            ...c,
+            detalles: (c.detalles || []).map((d) => ({ ...d, descripcion_extendida: d.descripcion_extendida ?? '' })),
+          })) as Cotizacion[]
+        }
+        if (version < 4 && Array.isArray(state.cotizaciones)) {
+          state.cotizaciones = state.cotizaciones.map((c) => ({
+            ...c,
+            cliente_nombre: (c.cliente_nombre || '').toUpperCase(),
+            contacto_nombre: (c.contacto_nombre || '').toUpperCase(),
+            vendedor: (c.vendedor || '').toUpperCase(),
+          })) as Cotizacion[]
+        }
+        if (version < 5 && Array.isArray(state.cotizaciones)) {
+          state.cotizaciones = state.cotizaciones.map((c) => ({
+            tipo_servicio: '',
+            pct_ica: 0,
+            ...c,
+          })) as Cotizacion[]
+        }
+        if (version < 6 && Array.isArray(state.cotizaciones)) {
+          state.cotizaciones = state.cotizaciones.map((c) => ({
+            nro_cotizacion_interno: '',
             ...c,
           })) as Cotizacion[]
         }

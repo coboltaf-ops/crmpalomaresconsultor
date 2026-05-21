@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useLineasServicioStore, LineaServicio } from '@/features/lineas-servicio/store/lineas-servicio-store'
 import { usePermisos } from '@/shared/hooks/use-permisos'
+import NumeroInput from '@/shared/components/numero-input'
 
 const empty = (): LineaServicio => ({
   id: '', codigo: '', nombre: '', descripcion: '', prefijo_cotizacion: '',
@@ -14,7 +15,7 @@ export default function LineasServicioPage() {
   const [selected, setSelected] = useState<LineaServicio | null>(null)
   const [isForm, setIsForm] = useState(false)
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none', boxSizing: 'border-box', height: 36 }
   const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
 
   const handleSave = (e: React.FormEvent) => {
@@ -48,11 +49,11 @@ export default function LineasServicioPage() {
             </div>
             <div>
               <label style={{ color: '#fff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>% IVA por defecto</label>
-              <input type="number" step="0.01" value={selected.iva_default} onChange={e => setSelected({ ...selected, iva_default: parseFloat(e.target.value) || 0 })} style={inputStyle} />
+              <NumeroInput value={selected.iva_default} onChange={n => setSelected({ ...selected, iva_default: n })} decimales={2} style={inputStyle} />
             </div>
             <div>
               <label style={{ color: '#fff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>% AIU por defecto</label>
-              <input type="number" step="0.01" value={selected.aiu_default} onChange={e => setSelected({ ...selected, aiu_default: parseFloat(e.target.value) || 0 })} style={inputStyle} />
+              <NumeroInput value={selected.aiu_default} onChange={n => setSelected({ ...selected, aiu_default: n })} decimales={2} style={inputStyle} />
             </div>
             <div>
               <label style={{ color: '#fff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Color</label>

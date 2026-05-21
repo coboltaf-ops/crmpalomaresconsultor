@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
+import { getSmtpConfig } from '@/shared/lib/smtp'
 
 export async function POST(req: Request) {
   try {
@@ -33,11 +34,12 @@ export async function POST(req: Request) {
         <p style="text-align:center;color:#9ca3af;font-size:11px;margin-top:16px">NOVASEGURIDAD - Gestion de Tareas</p>
       </div>`
 
+    const smtp = await getSmtpConfig()
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: true,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.secure,
+      auth: { user: smtp.user, pass: smtp.pass },
     })
 
     await transporter.sendMail({

@@ -3,17 +3,21 @@ import { useState, useRef } from 'react'
 import DocumentosPanel from '@/shared/components/documentos-panel'
 import { useEmpresaStore, Empresa } from '@/features/empresa/store/empresa-store'
 import { useReferenceStore } from '@/features/referencias/store/reference-store'
+import { useCentrosCostoStore } from '@/features/centros-costo/store/centros-costo-store'
 import { useCurrentUserStore } from '@/features/usuarios-gestion/store/current-user-store'
 import { usePermisos } from '@/shared/hooks/use-permisos'
 import { nextConsecutivo } from '@/shared/lib/consecutivo'
 import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import { Seguimiento } from '@/shared/types/seguimiento'
+import MigrarMayusculasButton from '@/shared/components/migrar-mayusculas-button'
+import SmtpConfigSection from '@/shared/components/smtp-config-section'
 
 export default function DatosEmpresaPage() {
   const permisos = usePermisos('datos-empresa')
   const currentUser = useCurrentUserStore(s => s.user)
   const { empresas, addEmpresa, updateEmpresa, deleteEmpresa } = useEmpresaStore()
   const refData = useReferenceStore(s => s.data)
+  const centrosCosto = useCentrosCostoStore(s => s.centros)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [selected, setSelected] = useState<Empresa | null>(null)
@@ -29,6 +33,7 @@ export default function DatosEmpresaPage() {
     return {
       id: '', codigo: nc.codigo, nombre: '', tipo_identificacion: 'NIT', nro_documento: '',
       correo: '', telefono: '', nro_movil: '', pagina_web: '', logo_url: '', representante_legal: '',
+      centro_costo: '',
       direccion: '', ciudad: '', pais: 'Colombia', codigo_postal: '',
       situacion: 'Activo', seguimientos: [],
     }
@@ -57,9 +62,10 @@ export default function DatosEmpresaPage() {
 
   const refOptions = (table: string) => (refData[table as keyof typeof refData] || []).filter(r => r.situacion).map(r => r.descripcion)
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
-  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
 
   // ── VIEW DETAIL ──
   if (viewDetail) {
@@ -89,6 +95,7 @@ export default function DatosEmpresaPage() {
               { label: 'Nro Móvil', value: viewDetail.nro_movil },
               { label: 'Página Web', value: viewDetail.pagina_web },
               { label: 'Representante Legal', value: viewDetail.representante_legal },
+              { label: 'Centro de Costo', value: viewDetail.centro_costo },
             ].map(f => (
               <div key={f.label}>
                 <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginBottom: 2 }}>{f.label}</p>
@@ -146,7 +153,7 @@ export default function DatosEmpresaPage() {
             </div>
             <div style={{ gridColumn: 'span 2' }}>
               <label style={labelStyle}>Nombre Empresa *</label>
-              <input value={selected.nombre} onChange={e => setSelected({ ...selected, nombre: e.target.value })} required style={inputStyle} />
+              <input value={selected.nombre} onChange={e => setSelected({ ...selected, nombre: e.target.value.toUpperCase() })} required style={inputUpper} />
             </div>
             <div>
               <label style={labelStyle}>Tipo Identificación</label>
@@ -176,7 +183,16 @@ export default function DatosEmpresaPage() {
             </div>
             <div>
               <label style={labelStyle}>Representante Legal</label>
-              <input value={selected.representante_legal} onChange={e => setSelected({ ...selected, representante_legal: e.target.value })} style={inputStyle} />
+              <input value={selected.representante_legal} onChange={e => setSelected({ ...selected, representante_legal: e.target.value.toUpperCase() })} style={inputUpper} />
+            </div>
+            <div>
+              <label style={labelStyle}>Centro de Costo</label>
+              <select value={selected.centro_costo || ''} onChange={e => setSelected({ ...selected, centro_costo: e.target.value })} style={inputStyle}>
+                <option value="">Seleccionar centro de costo...</option>
+                {centrosCosto.filter(c => c.situacion === 'Activo').map(c => (
+                  <option key={c.id} value={c.codigo}>{c.codigo} — {c.nombre}</option>
+                ))}
+              </select>
             </div>
 
             {/* Logo */}
@@ -284,6 +300,10 @@ export default function DatosEmpresaPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Mantenimiento de datos — solo admin */}
+      <SmtpConfigSection />
+      <MigrarMayusculasButton />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 type ClienteInfo = { cliente_id: string; cliente_codigo: string; cliente_nombre: string }
 
@@ -46,6 +46,11 @@ export default function PQRSPublicoPage() {
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; mensaje: string; radicado?: string } | null>(null)
   const [salir, setSalir] = useState(false)
+  const [empresa, setEmpresa] = useState<{ nombre: string; logo_url: string }>({ nombre: 'Nova Seguridad', logo_url: '' })
+
+  useEffect(() => {
+    fetch('/api/empresa-publica').then(r => r.json()).then(setEmpresa).catch(() => {})
+  }, [])
 
   const [acepta, setAcepta] = useState(false)
   const [errorAcepta, setErrorAcepta] = useState('')
@@ -126,6 +131,10 @@ export default function PQRSPublicoPage() {
     return (
       <div style={{ minHeight: '100vh', background: '#1e3a8a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <div style={{ background: '#0f1b3d', borderRadius: 16, padding: '36px 32px', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          {empresa.logo_url && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={empresa.logo_url} alt={empresa.nombre} style={{ maxWidth: 120, maxHeight: 60, objectFit: 'contain', margin: '0 auto 16px', display: 'block' }} />
+          )}
           <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 30 }}>✅</div>
           <h2 style={{ color: '#ffffff', fontSize: 18, fontWeight: 800, marginBottom: 8 }}>PQRS Radicada Exitosamente</h2>
           {result.radicado && (
@@ -150,6 +159,10 @@ export default function PQRSPublicoPage() {
     return (
       <div style={{ minHeight: '100vh', background: '#1e3a8a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <div style={{ background: '#0f1b3d', borderRadius: 16, padding: '36px 32px', maxWidth: 380, width: '100%', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          {empresa.logo_url && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={empresa.logo_url} alt={empresa.nombre} style={{ maxWidth: 120, maxHeight: 60, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
+          )}
           <div style={{ fontSize: 42, marginBottom: 12 }}>👋</div>
           <h2 style={{ color: '#ffffff', fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Gracias por visitarnos</h2>
           <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 20 }}>Puede cerrar esta pestaña de forma segura.</p>
@@ -169,10 +182,15 @@ export default function PQRSPublicoPage() {
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📩</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {empresa.logo_url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={empresa.logo_url} alt={empresa.nombre} style={{ maxWidth: 56, maxHeight: 56, objectFit: 'contain', borderRadius: 10, background: 'rgba(255,255,255,0.1)', padding: 6 }} />
+            ) : (
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📩</div>
+            )}
             <div>
-              <h1 style={{ color: "#ffffff", fontSize: 17, fontWeight: 800, margin: 0 }}>Nova Seguridad · Radicar PQRS</h1>
+              <h1 style={{ color: "#ffffff", fontSize: 17, fontWeight: 800, margin: 0 }}>{empresa.nombre} · Radicar PQRS</h1>
               <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, margin: 0 }}>Peticiones, Quejas, Reclamos y Sugerencias</p>
             </div>
           </div>

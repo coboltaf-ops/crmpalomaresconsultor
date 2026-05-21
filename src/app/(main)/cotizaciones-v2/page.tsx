@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { logAudit, computarDiff } from '@/shared/lib/audit'
+import { useState, useEffect, Fragment } from 'react'
 import { useCotizacionesStore, Cotizacion, DetalleCotizacion } from '@/features/cotizaciones/store/cotizaciones-store'
 import { useClientesStore } from '@/features/clientes/store/clientes-store'
 import { useContactosStore } from '@/features/contactos/store/contactos-store'
@@ -18,30 +19,42 @@ import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import DocumentosPanel from '@/shared/components/documentos-panel'
 import { useAsistenteStore } from '@/shared/stores/asistente-store'
 import { Seguimiento } from '@/shared/types/seguimiento'
+import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
+import NumeroInput from '@/shared/components/numero-input'
+import { getCurrencyCode } from '@/shared/lib/format-money'
 
-const today = todayColombia()
 
 const emptyDetalle = (): DetalleCotizacion => ({
-  id: crypto.randomUUID(), producto_id: '', codigo_producto: '', descripcion: '',
+  id: crypto.randomUUID(), producto_id: '', codigo_producto: '', descripcion: '', descripcion_extendida: '',
   cantidad: 1, precio_unitario: 0, unidad_medida: 'Unidad', descuento_pct: 0, subtotal: 0,
 })
 
 const emptyCotizacion = (codigo: string, nro: number, responsable: string): Cotizacion => ({
   id: '', codigo, nro,
-  linea_servicio_id: '', linea_servicio_codigo: '', linea_servicio_nombre: '', pct_aiu: 10,
-  fecha_emision: today,
+  linea_servicio_id: '', linea_servicio_codigo: '', linea_servicio_nombre: '', pct_aiu: 0,
+  tipo_servicio: '',
+  nro_cotizacion_interno: '',
+  fecha_emision: '',
   fecha_vencimiento: '', cliente_id: '', cliente_nombre: '', contacto_id: '', contacto_nombre: '',
   oportunidad_id: '', oportunidad_nombre: '', tipo_moneda: 'Pesos Colombianos',
-  condicion_pago: 'Contado', pct_impuesto: 19, observaciones: '', detalles: [emptyDetalle()],
-  situacion: 'En Construcción', responsable, vendedor: '', fecha_registro: today, seguimientos: [],
+  condicion_pago: 'Contado', pct_impuesto: 19, pct_ica: 0,
+  observaciones: '', detalles: [emptyDetalle()],
+  situacion: 'En Construcción', responsable, vendedor: '', fecha_registro: todayColombia(), seguimientos: [],
 })
 
-const calcTotals = (detalles: DetalleCotizacion[], pct: number, pctAiu: number = 0) => {
+/**
+ * Calcula los totales de la cotización.
+ * - Subtotal: suma de subtotales de líneas
+ * - IVA: subtotal × pct_impuesto%   (se SUMA)
+ * - ICA: subtotal × pct_ica%        (se RESTA porque es retención)
+ * - Total General = Subtotal + IVA − ICA
+ */
+const calcTotals = (detalles: DetalleCotizacion[], pctIva: number, pctIca: number = 0) => {
   const subtotal = detalles.reduce((s, d) => s + d.subtotal, 0)
-  const aiu = subtotal * (pctAiu / 100)
-  const baseImpuesto = subtotal + aiu
-  const impuesto = baseImpuesto * (pct / 100)
-  return { subtotal, aiu, impuesto, total: baseImpuesto + impuesto }
+  const impuesto = subtotal * (pctIva / 100)
+  const ica = subtotal * (pctIca / 100)
+  const total = subtotal + impuesto - ica
+  return { subtotal, impuesto, ica, total }
 }
 
 export default function CotizacionesPage() {
@@ -64,8 +77,10 @@ export default function CotizacionesPage() {
   const [viewDetail, setViewDetail] = useState<Cotizacion | null>(null)
   const [tab, setTab] = useState<'registros' | 'reportes'>('registros')
   const [search, setSearch] = useState('')
+  const [filtroLinea, setFiltroLinea] = useState('')
   const [searchProd, setSearchProd] = useState('')
   const [showProductos, setShowProductos] = useState(false)
+  const [tipoAgregar, setTipoAgregar] = useState<'Servicio' | 'Producto' | null>(null)
   const { pendingSearch, pendingAction, clearPending } = useAsistenteStore()
   useEffect(() => {
     if (pendingSearch) setSearch(pendingSearch)
@@ -78,10 +93,12 @@ export default function CotizacionesPage() {
   const [emailMsg, setEmailMsg] = useState('')
   const [sending, setSending] = useState(false)
 
-  const filtered = cotizaciones.filter(c =>
-    !search || c.codigo.toLowerCase().includes(search.toLowerCase()) ||
-    c.cliente_nombre.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = cotizaciones.filter(c => {
+    if (filtroLinea && c.linea_servicio_codigo !== filtroLinea) return false
+    if (!search) return true
+    const q = search.toLowerCase()
+    return c.codigo.toLowerCase().includes(q) || c.cliente_nombre.toLowerCase().includes(q)
+  })
 
   const recalcDetalle = (d: DetalleCotizacion): DetalleCotizacion => {
     const bruto = d.cantidad * d.precio_unitario
@@ -102,6 +119,13 @@ export default function CotizacionesPage() {
     setSelected({ ...selected, detalles: detalles.length ? detalles : [emptyDetalle()] })
   }
 
+  const auditParams = () => ({
+    usuario: currentUser?.usuario || 'desconocido',
+    usuario_nombre: `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`.trim(),
+    rol: currentUser?.rol || '',
+    modulo: 'cotizaciones',
+  })
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
@@ -115,7 +139,7 @@ export default function CotizacionesPage() {
       contacto_nombre: con ? `${con.nombre} ${con.apellido}` : selected.contacto_nombre,
       oportunidad_nombre: opo?.nombre || selected.oportunidad_nombre,
     }
-    if (toSave.id) { updateCotizacion(toSave.id, toSave) }
+    if (toSave.id) { const _anterior = cotizaciones.find(x => x.id === toSave.id); updateCotizacion(toSave.id, toSave); logAudit({ ...auditParams(), accion: "MODIFICAR", registro_codigo: toSave.codigo, registro_nombre: toSave.cliente_nombre, detalle: computarDiff(_anterior as unknown as Record<string, unknown>, toSave as unknown as Record<string, unknown>) }) }
     else { addCotizacion({ ...toSave, id: crypto.randomUUID() }) }
     setIsForm(false); setSelected(null)
   }
@@ -157,17 +181,17 @@ export default function CotizacionesPage() {
   }
 
   const generatePDF = (cot: Cotizacion) => {
-    const { subtotal, aiu, impuesto, total } = calcTotals(cot.detalles, cot.pct_impuesto, cot.pct_aiu)
+    const { subtotal, ica, impuesto, total } = calcTotals(cot.detalles, cot.pct_impuesto, cot.pct_ica)
     const cli = clientes.find(c => c.id === cot.cliente_id)
     const rows = cot.detalles.map((d, i) => `
       <tr style="background:${i % 2 === 0 ? '#f9fafb' : '#fff'}">
         <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-family:monospace;font-size:12px">${d.codigo_producto}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${d.descripcion}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">${d.descripcion}${d.descripcion_extendida ? `<div style="color:#6b7280;font-size:11px;margin-top:4px;white-space:pre-wrap;line-height:1.4">${d.descripcion_extendida}</div>` : ''}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.cantidad}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.unidad_medida}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">${fmtMoney(d.precio_unitario)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right">${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(d.precio_unitario)}</td>
         <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.descuento_pct}%</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600">${fmtMoney(d.subtotal)}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600">${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(d.subtotal)}</td>
       </tr>`).join('')
     const emp = empresa
     const html = `<!DOCTYPE html><html><head><title>Cotización ${cot.codigo}</title>
@@ -179,6 +203,7 @@ export default function CotizacionesPage() {
           <p style="color:#6b7280;font-size:12px">NIT: ${emp.nro_documento || ''}</p>` : ''}
           <h1 style="font-size:22px;color:#8b0000;margin-top:12px;font-weight:900">COTIZACIÓN</h1>
           <p style="font-family:monospace;font-size:18px;font-weight:900;color:#8b0000">${cot.codigo}</p>
+          ${cot.linea_servicio_nombre ? `<p style="font-size:12px;color:#1e3a8a;font-weight:700;margin-top:4px">Línea: ${cot.linea_servicio_nombre}</p>` : ''}
         </div>
         <div style="text-align:right"><p style="font-size:16px;font-weight:600;color:#1e3a8a">Fecha: ${fDate(cot.fecha_emision)}</p><p style="font-size:16px;font-weight:600;color:#1e3a8a">Vence: ${fDate(cot.fecha_vencimiento)}</p></div>
       </div>
@@ -204,12 +229,12 @@ export default function CotizacionesPage() {
         </tr></thead><tbody>${rows}</tbody>
       </table>
       <div style="text-align:right;margin-bottom:24px">
-        <p>Subtotal: <strong>${fmtMoney(subtotal)}</strong></p>
+        <p>Subtotal: <strong>${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(subtotal)}</strong></p>
         <br/>
-        ${cot.pct_aiu > 0 ? `<p>AIU (${cot.pct_aiu}%): <strong>${fmtMoney(aiu)}</strong></p><br/>` : ''}
-        <p>Impuesto (${cot.pct_impuesto}%): <strong>${fmtMoney(impuesto)}</strong></p>
+        ${cot.pct_ica > 0 ? `<p>ICA (${cot.pct_ica}%): <strong>− ${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(ica)}</strong></p><br/>` : ''}
+        <p>Impuesto (${cot.pct_impuesto}%): <strong>${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(impuesto)}</strong></p>
         <br/>
-        <p style="font-size:18px;color:#1e1b4b;border-top:2px solid #1e1b4b;padding-top:8px;margin-top:4px">TOTAL GENERAL: <strong>${fmtMoney(total)}</strong></p>
+        <p style="font-size:18px;color:#1e1b4b;border-top:2px solid #1e1b4b;padding-top:8px;margin-top:4px">TOTAL GENERAL: <strong>${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(total)}</strong></p>
       </div>
       ${cot.observaciones ? `<div style="background:#f9fafb;padding:12px;border-radius:8px;margin-bottom:24px"><p style="color:#1e3a8a;font-size:11px;font-weight:700">OBSERVACIONES</p><p>${cot.observaciones}</p></div>` : ''}
       ${cot.situacion === 'Anulada' ? `<div style="text-align:center;margin:32px 0;padding:24px;border:6px solid #dc2626;border-radius:12px;background:rgba(220,38,38,0.05)"><p style="color:#dc2626;font-size:64px;font-weight:900;letter-spacing:8px;margin:0;text-shadow:2px 2px 0 rgba(220,38,38,0.2)">A N U L A D A</p></div>` : ''}
@@ -235,8 +260,10 @@ export default function CotizacionesPage() {
     return map[s] || {}
   }
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
   const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? '#1e3a8a' : 'rgba(255,255,255,0.15)', color: active ? '#ffffff' : 'rgba(255,255,255,0.7)', border: active ? '1px solid #2563eb' : '1px solid rgba(255,255,255,0.2)' })
   const refOptions = (table: string) => (refData[table as keyof typeof refData] || []).filter(r => r.situacion).map(r => r.descripcion)
 
@@ -246,8 +273,8 @@ export default function CotizacionesPage() {
     const celular = contacto?.celular || cliente?.telefono || ''
     if (!celular) { alert('No se encontró número de celular del contacto o empresa'); return }
     const numero = celular.replace(/[^0-9]/g, '')
-    const { subtotal, aiu, impuesto, total } = calcTotals(cot.detalles, cot.pct_impuesto, cot.pct_aiu)
-    const items = cot.detalles.map(d => `  - ${d.descripcion}: ${d.cantidad} x ${fmtMoney(d.precio_unitario)} = ${fmtMoney(d.subtotal)}`).join('\n')
+    const { subtotal, ica, impuesto, total } = calcTotals(cot.detalles, cot.pct_impuesto, cot.pct_ica)
+    const items = cot.detalles.map(d => `  - ${d.descripcion}: ${d.cantidad} x ${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(d.precio_unitario)} = ${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(d.subtotal)}`).join('\n')
     const mensaje = `Hola, le enviamos la cotización *${cot.codigo}*\n\n` +
       `*Empresa:* ${cot.cliente_nombre}\n` +
       (cot.linea_servicio_nombre ? `*Línea:* ${cot.linea_servicio_nombre}\n` : '') +
@@ -255,10 +282,10 @@ export default function CotizacionesPage() {
       `*Condición de Pago:* ${cot.condicion_pago}\n` +
       `*Moneda:* ${cot.tipo_moneda}\n\n` +
       `*Detalle:*\n${items}\n\n` +
-      `*Subtotal:* ${fmtMoney(subtotal)}\n` +
-      (cot.pct_aiu > 0 ? `*AIU (${cot.pct_aiu}%):* ${fmtMoney(aiu)}\n` : '') +
-      `*Impuesto (${cot.pct_impuesto}%):* ${fmtMoney(impuesto)}\n` +
-      `*TOTAL: ${fmtMoney(total)}*\n\n` +
+      `*Subtotal:* ${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(subtotal)}\n` +
+      (cot.pct_ica > 0 ? `*ICA (${cot.pct_ica}%) [retención]:* − ${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(ica)}\n` : '') +
+      `*Impuesto (${cot.pct_impuesto}%):* ${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(impuesto)}\n` +
+      `*TOTAL: ${getCurrencyCode(cot.tipo_moneda)} ${fmtMoney(total)}*\n\n` +
       (cot.observaciones ? `_${cot.observaciones}_\n\n` : '') +
       `Vendedor: ${cot.vendedor || cot.responsable}`
     window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`, '_blank')
@@ -278,15 +305,15 @@ export default function CotizacionesPage() {
           <h2 style={{ color: '#ffffff', fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Enviar {emailModal.codigo} por Email</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Para *</label>
+              <label style={labelStyle}>Para *</label>
               <input type="email" value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder={con?.email || cli?.email || 'correo@ejemplo.com'} required style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Asunto</label>
+              <label style={labelStyle}>Asunto</label>
               <input value={emailAsunto} onChange={e => setEmailAsunto(e.target.value)} placeholder={`Cotización ${emailModal.codigo}`} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Mensaje</label>
+              <label style={labelStyle}>Mensaje</label>
               <textarea value={emailMsg} onChange={e => setEmailMsg(e.target.value)} rows={4} placeholder="Mensaje adicional..." style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
             <button onClick={handleSendEmail} disabled={sending || !emailTo}
@@ -301,7 +328,7 @@ export default function CotizacionesPage() {
 
   // ── VIEW DETAIL ──
   if (viewDetail) {
-    const { subtotal, aiu, impuesto, total } = calcTotals(viewDetail.detalles, viewDetail.pct_impuesto, viewDetail.pct_aiu)
+    const { subtotal, ica, impuesto, total } = calcTotals(viewDetail.detalles, viewDetail.pct_impuesto, viewDetail.pct_ica)
     return (
       <div>
         <button onClick={() => setViewDetail(null)} style={{ ...btnStyle, background: '#000000', color: '#ffffff', border: '1px solid #333333', marginBottom: 16 }}>← Volver</button>
@@ -318,7 +345,13 @@ export default function CotizacionesPage() {
               <h2 style={{ color: '#ffffff', fontSize: 20, fontWeight: 700 }}>{viewDetail.codigo}</h2>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{viewDetail.cliente_nombre}</p>
             </div>
-            <span style={{ padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, ...statusStyle(viewDetail.situacion) }}>{viewDetail.situacion}</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {viewDetail.linea_servicio_codigo && (() => {
+                const linea = lineasServicio.find(l => l.codigo === viewDetail.linea_servicio_codigo)
+                return <span title={viewDetail.linea_servicio_nombre} style={{ background: linea?.color || '#475569', color: '#fff', padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, fontFamily: 'monospace' }}>{viewDetail.linea_servicio_codigo} — {viewDetail.linea_servicio_nombre}</span>
+              })()}
+              <span style={{ padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, ...statusStyle(viewDetail.situacion) }}>{viewDetail.situacion}</span>
+            </div>
           </div>
           {(() => {
             const cli = clientes.find(c => c.id === viewDetail.cliente_id)
@@ -364,12 +397,15 @@ export default function CotizacionesPage() {
                 {viewDetail.detalles.map((d, i) => (
                   <tr key={d.id} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent' }}>
                     <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#4ade80', fontSize: 12, fontFamily: 'monospace' }}>{d.codigo_producto}</td>
-                    <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: 12 }}>{d.descripcion}</td>
+                    <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: 12 }}>
+                      <div>{d.descripcion}</div>
+                      {d.descripcion_extendida && <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>{d.descripcion_extendida}</div>}
+                    </td>
                     <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: 12, textAlign: 'center' }}>{d.cantidad}</td>
                     <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center' }}>{d.unidad_medida}</td>
-                    <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: 12, textAlign: 'right' }}>${fmtMoney(d.precio_unitario)}</td>
+                    <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: 12, textAlign: 'right' }}>{getCurrencyCode(viewDetail.tipo_moneda)} {fmtMoney(d.precio_unitario)}</td>
                     <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center' }}>{d.descuento_pct}%</td>
-                    <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#34d399', fontSize: 12, textAlign: 'right', fontWeight: 600 }}>${fmtMoney(d.subtotal)}</td>
+                    <td style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#34d399', fontSize: 12, textAlign: 'right', fontWeight: 600 }}>{getCurrencyCode(viewDetail.tipo_moneda)} {fmtMoney(d.subtotal)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -377,15 +413,15 @@ export default function CotizacionesPage() {
           </div>
 
           <div style={{ textAlign: 'right', marginBottom: 16 }}>
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Subtotal: <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(subtotal)}</span></p>
-            {viewDetail.pct_aiu > 0 && <>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Subtotal: <span style={{ color: '#ffffff', fontWeight: 600 }}>{getCurrencyCode(viewDetail.tipo_moneda)} {fmtMoney(subtotal)}</span></p>
+            {viewDetail.pct_ica > 0 && <>
               <div style={{ height: 12 }} />
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>AIU ({viewDetail.pct_aiu}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(aiu)}</span></p>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>ICA ({viewDetail.pct_ica}%) [retención]: <span style={{ color: '#fca5a5', fontWeight: 600 }}>− {getCurrencyCode(viewDetail.tipo_moneda)} {fmtMoney(ica)}</span></p>
             </>}
             <div style={{ height: 12 }} />
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Impuesto ({viewDetail.pct_impuesto}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(impuesto)}</span></p>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Impuesto ({viewDetail.pct_impuesto}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>{getCurrencyCode(viewDetail.tipo_moneda)} {fmtMoney(impuesto)}</span></p>
             <div style={{ height: 12 }} />
-            <p style={{ color: '#4ade80', fontSize: 18, fontWeight: 800, borderTop: '2px solid rgba(255,255,255,0.2)', paddingTop: 8 }}>TOTAL GENERAL: ${fmtMoney(total)}</p>
+            <p style={{ color: '#4ade80', fontSize: 18, fontWeight: 800, borderTop: '2px solid rgba(255,255,255,0.2)', paddingTop: 8 }}>TOTAL GENERAL: {getCurrencyCode(viewDetail.tipo_moneda)} {fmtMoney(total)}</p>
           </div>
 
           {viewDetail.observaciones && <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 16 }}>Observaciones: {viewDetail.observaciones}</p>}
@@ -417,7 +453,7 @@ export default function CotizacionesPage() {
 
   // ── FORM ──
   if (isForm && selected) {
-    const { subtotal, aiu, impuesto, total } = calcTotals(selected.detalles, selected.pct_impuesto, selected.pct_aiu)
+    const { subtotal, ica, impuesto, total } = calcTotals(selected.detalles, selected.pct_impuesto, selected.pct_ica)
     return (
       <div>
         <button onClick={() => { setIsForm(false); setSelected(null) }} style={{ ...btnStyle, background: '#000000', color: '#ffffff', border: '1px solid #333333', marginBottom: 16 }}>← Volver</button>
@@ -426,8 +462,24 @@ export default function CotizacionesPage() {
 
           {/* Header fields */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
-            <div style={{ gridColumn: 'span 3' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Línea de Servicio *</label>
+            <div>
+              <label style={labelStyle}>Código</label>
+              <input value={selected.codigo} readOnly placeholder="Se genera al elegir línea de servicio" style={{ ...inputStyle, opacity: 0.6, fontFamily: 'monospace', fontWeight: 700 }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Fecha de Registro</label>
+              <input value={fDate(selected.fecha_registro)} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Fecha Emisión *</label>
+              <input type="date" value={selected.fecha_emision} onChange={e => setSelected({ ...selected, fecha_emision: e.target.value })} required style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Fecha Vencimiento</label>
+              <input type="date" value={selected.fecha_vencimiento} onChange={e => setSelected({ ...selected, fecha_vencimiento: e.target.value })} style={inputStyle} />
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={labelStyle}>Línea de Servicio *</label>
               <select value={selected.linea_servicio_id} onChange={e => {
                 const linea = lineasServicio.find(l => l.id === e.target.value)
                 if (!linea) {
@@ -445,7 +497,7 @@ export default function CotizacionesPage() {
                   codigo: nc.codigo,
                   nro: nc.nro,
                   pct_impuesto: linea.iva_default,
-                  pct_aiu: linea.aiu_default,
+                  pct_ica: linea.aiu_default,
                 })
               }} required disabled={!!selected.id} style={inputStyle}>
                 <option value="">Seleccionar línea de servicio...</option>
@@ -455,14 +507,26 @@ export default function CotizacionesPage() {
                 <p style={{ color: '#4ade80', fontSize: 11, marginTop: 4, fontFamily: 'monospace' }}>Código asignado: {selected.codigo}</p>
               )}
             </div>
-            <div style={{ gridColumn: 'span 3' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Empresa *</label>
+
+            {/* 4) Cliente con datos auto (dirección/ciudad/país) · 5) Contacto */}
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={labelStyle}>Cliente *</label>
               <select value={selected.cliente_id} onChange={e => {
                 const cli = clientes.find(c => c.id === e.target.value)
                 setSelected({ ...selected, cliente_id: e.target.value, cliente_nombre: cli?.razon_social || '', contacto_id: '', contacto_nombre: '', oportunidad_id: '', oportunidad_nombre: '' })
               }} required style={inputStyle}>
-                <option value="">Seleccionar empresa...</option>
+                <option value="">Seleccionar cliente...</option>
                 {clientes.map(c => <option key={c.id} value={c.id}>{c.razon_social}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Contacto</label>
+              <select value={selected.contacto_id} onChange={e => {
+                const con = contactosDelCliente.find(c => c.id === e.target.value)
+                setSelected({ ...selected, contacto_id: e.target.value, contacto_nombre: con ? `${con.nombre} ${con.apellido}` : '' })
+              }} style={inputStyle}>
+                <option value="">Seleccionar...</option>
+                {contactosDelCliente.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido}</option>)}
               </select>
             </div>
             {selected.cliente_id && (() => {
@@ -471,7 +535,7 @@ export default function CotizacionesPage() {
                 allClientes.find(c => c.razon_social === selected.cliente_nombre)
               return (
                 <div style={{ gridColumn: 'span 3', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 10, padding: 12 }}>
-                  <p style={{ color: '#93c5fd', fontSize: 11, fontWeight: 700, marginBottom: 8, letterSpacing: 0.5 }}>DATOS DEL CLIENTE</p>
+                  <p style={{ color: '#93c5fd', fontSize: 11, fontWeight: 700, marginBottom: 8, letterSpacing: 0.5 }}>DATOS DEL CLIENTE (auto)</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 12 }}>
                     {[
                       { l: 'Tipo ID', v: cli?.tipo_identificacion },
@@ -489,30 +553,31 @@ export default function CotizacionesPage() {
                 </div>
               )
             })()}
+
+            {/* 6) Condición de Pago · 7) Vendedor · 8) Tipo Moneda */}
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Código</label>
-              <input value={selected.codigo} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
-            </div>
-            <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha Emisión</label>
-              <input type="date" value={selected.fecha_emision} onChange={e => setSelected({ ...selected, fecha_emision: e.target.value })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Fecha Vencimiento</label>
-              <input type="date" value={selected.fecha_vencimiento} onChange={e => setSelected({ ...selected, fecha_vencimiento: e.target.value })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Contacto</label>
-              <select value={selected.contacto_id} onChange={e => {
-                const con = contactosDelCliente.find(c => c.id === e.target.value)
-                setSelected({ ...selected, contacto_id: e.target.value, contacto_nombre: con ? `${con.nombre} ${con.apellido}` : '' })
-              }} style={inputStyle}>
-                <option value="">Seleccionar...</option>
-                {contactosDelCliente.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellido}</option>)}
+              <label style={labelStyle}>Condición de Pago</label>
+              <select value={selected.condicion_pago} onChange={e => setSelected({ ...selected, condicion_pago: e.target.value })} style={inputStyle}>
+                {refOptions('condiciones_pago').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Oportunidad</label>
+              <label style={labelStyle}>Vendedor</label>
+              <select value={selected.vendedor} onChange={e => setSelected({ ...selected, vendedor: e.target.value })} style={inputStyle}>
+                <option value="">Seleccionar...</option>
+                {vendedores.map(v => <option key={v.id} value={`${v.nombre} ${v.apellido}`}>{v.nombre} {v.apellido}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Tipo Moneda</label>
+              <select value={selected.tipo_moneda} onChange={e => setSelected({ ...selected, tipo_moneda: e.target.value })} style={inputStyle}>
+                {refOptions('tipo_moneda').map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+
+            {/* Oportunidad opcional + impuestos */}
+            <div>
+              <label style={labelStyle}>Oportunidad (opcional)</label>
               <select value={selected.oportunidad_id} onChange={e => {
                 const opo = oportunidades.find(o => o.id === e.target.value)
                 setSelected({ ...selected, oportunidad_id: e.target.value, oportunidad_nombre: opo?.nombre || '' })
@@ -522,63 +587,74 @@ export default function CotizacionesPage() {
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Condición Pago</label>
-              <select value={selected.condicion_pago} onChange={e => setSelected({ ...selected, condicion_pago: e.target.value })} style={inputStyle}>
-                {refOptions('condiciones_pago').map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
+              <label style={labelStyle}>% IVA</label>
+              <NumeroInput value={selected.pct_impuesto} onChange={n => setSelected({ ...selected, pct_impuesto: n })} decimales={2} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Moneda</label>
-              <select value={selected.tipo_moneda} onChange={e => setSelected({ ...selected, tipo_moneda: e.target.value })} style={inputStyle}>
-                {refOptions('tipo_moneda').map(o => <option key={o} value={o}>{o}</option>)}
-              </select>
+              <label style={labelStyle}>% ICA (retención)</label>
+              <NumeroInput value={selected.pct_ica} onChange={n => setSelected({ ...selected, pct_ica: n })} decimales={2} style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>% AIU</label>
-              <input type="number" step="0.01" min="0" value={selected.pct_aiu} onChange={e => setSelected({ ...selected, pct_aiu: parseFloat(e.target.value) || 0 })} style={inputStyle} />
+              <label style={labelStyle}>Nro Cotización Interno</label>
+              <input value={selected.nro_cotizacion_interno || ''} onChange={e => setSelected({ ...selected, nro_cotizacion_interno: e.target.value.toUpperCase() })} placeholder="Ej: 2026-VENTAS-042" style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>% Impuesto</label>
-              <input type="number" step="0.01" min="0" value={selected.pct_impuesto} onChange={e => setSelected({ ...selected, pct_impuesto: parseFloat(e.target.value) || 0 })} style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Vendedor</label>
-              <select value={selected.vendedor} onChange={e => setSelected({ ...selected, vendedor: e.target.value })} style={inputStyle}>
-                <option value="">Seleccionar...</option>
-                {vendedores.map(v => <option key={v.id} value={`${v.nombre} ${v.apellido}`}>{v.codigo} - {v.nombre} {v.apellido}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Situación</label>
+              <label style={labelStyle}>Situación</label>
               <select value={selected.situacion} onChange={e => setSelected({ ...selected, situacion: e.target.value })} style={inputStyle}>
                 {refOptions('situacion_cotizacion').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
           </div>
 
-          {/* Buscar y agregar producto */}
+          {/* Buscar y agregar producto/servicio */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <h3 style={{ color: '#ffffff', fontSize: 14, fontWeight: 600, margin: 0 }}>Detalle de Productos</h3>
-            <button type="button" onClick={() => { setShowProductos(!showProductos); setSearchProd('') }}
+            <h3 style={{ color: '#ffffff', fontSize: 14, fontWeight: 600, margin: 0 }}>Detalle de Productos y Servicios</h3>
+            <button type="button" onClick={() => { setShowProductos(!showProductos); setSearchProd(''); setTipoAgregar(null) }}
               style={{ padding: '8px 18px', borderRadius: 8, background: showProductos ? '#dc2626' : '#1e3a8a', color: '#ffffff', border: showProductos ? '1px solid #ef4444' : '1px solid #2563eb', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-              {showProductos ? '✕ Cerrar' : '+ Agregar Productos'}
+              {showProductos ? '✕ Cerrar' : '+ Agregar Item'}
             </button>
           </div>
-          {showProductos && (
+          {showProductos && !tipoAgregar && (
+            <div style={{ marginBottom: 12, padding: 16, background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)' }}>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 10, fontWeight: 600 }}>¿Qué deseas agregar?</p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="button" onClick={() => { setTipoAgregar('Servicio'); setSearchProd('') }}
+                  style={{ flex: 1, padding: '14px 18px', borderRadius: 10, background: 'rgba(59,130,246,0.15)', color: '#93c5fd', border: '2px solid rgba(59,130,246,0.4)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                  🛡️ Servicio
+                </button>
+                <button type="button" onClick={() => { setTipoAgregar('Producto'); setSearchProd('') }}
+                  style={{ flex: 1, padding: '14px 18px', borderRadius: 10, background: 'rgba(168,85,247,0.15)', color: '#d8b4fe', border: '2px solid rgba(168,85,247,0.4)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                  📦 Producto
+                </button>
+              </div>
+            </div>
+          )}
+          {showProductos && tipoAgregar && (
             <div style={{ marginBottom: 12 }}>
-              <input value={searchProd} onChange={e => setSearchProd(e.target.value)} placeholder="Buscar producto por código o descripción..." style={{ ...inputStyle, maxWidth: 500, marginBottom: 8 }} autoFocus />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ background: tipoAgregar === 'Servicio' ? 'rgba(59,130,246,0.2)' : 'rgba(168,85,247,0.2)', color: tipoAgregar === 'Servicio' ? '#93c5fd' : '#d8b4fe', padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+                  {tipoAgregar === 'Servicio' ? '🛡️ Servicios' : '📦 Productos'}
+                </span>
+                <button type="button" onClick={() => { setTipoAgregar(null); setSearchProd('') }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline' }}>
+                  Cambiar tipo
+                </button>
+              </div>
+              <input value={searchProd} onChange={e => setSearchProd(e.target.value)} placeholder={`Buscar ${tipoAgregar.toLowerCase()} por código o descripción...`} style={{ ...inputStyle, maxWidth: 500, marginBottom: 8 }} autoFocus />
               <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, maxHeight: 220, overflow: 'auto' }}>
-                {productos.filter(p => p.situacion === 'Activo').filter(p => !searchProd || p.descripcion.toLowerCase().includes(searchProd.toLowerCase()) || p.codigo.toLowerCase().includes(searchProd.toLowerCase())).slice(0, 20).map(p => (
+                {productos.filter(p => p.situacion === 'Activo').filter(p => !tipoAgregar || p.tipo === tipoAgregar).filter(p => !selected?.linea_servicio_codigo || !p.linea_servicio_codigo || p.linea_servicio_codigo === selected.linea_servicio_codigo).filter(p => !searchProd || p.descripcion.toLowerCase().includes(searchProd.toLowerCase()) || p.codigo.toLowerCase().includes(searchProd.toLowerCase())).slice(0, 20).map(p => (
                   <div key={p.id} onClick={() => {
                     if (!selected) return
-                    const nuevo = recalcDetalle({ id: crypto.randomUUID(), producto_id: p.id, codigo_producto: p.codigo, descripcion: p.descripcion, cantidad: 1, precio_unitario: p.precio_unitario, unidad_medida: p.unidad_medida, descuento_pct: 0, subtotal: 0 })
+                    const nuevo = recalcDetalle({ id: crypto.randomUUID(), producto_id: p.id, codigo_producto: p.codigo, descripcion: p.descripcion, descripcion_extendida: '', cantidad: 1, precio_unitario: p.precio_unitario, unidad_medida: p.unidad_medida, descuento_pct: 0, subtotal: 0 })
                     const detalles = selected.detalles.filter(d => d.producto_id)
                     setSelected({ ...selected, detalles: [...detalles, nuevo] })
+                    setTipoAgregar(null)
+                    setSearchProd('')
                   }} style={{ padding: '10px 14px', cursor: 'pointer', fontSize: 12, color: '#ffffff', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'background 0.15s' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <span><span style={{ color: '#4ade80', fontFamily: 'monospace', marginRight: 8 }}>{p.codigo}</span>{p.descripcion}</span>
-                    <span style={{ color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap', marginLeft: 12 }}>${fmtMoney(p.precio_unitario)}</span>
+                    <span style={{ color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap', marginLeft: 12 }}>{getCurrencyCode(p.tipo_moneda)} {fmtMoney(p.precio_unitario)}</span>
                   </div>
                 ))}
                 {productos.filter(p => p.situacion === 'Activo').filter(p => !searchProd || p.descripcion.toLowerCase().includes(searchProd.toLowerCase()) || p.codigo.toLowerCase().includes(searchProd.toLowerCase())).length === 0 && (
@@ -593,32 +669,52 @@ export default function CotizacionesPage() {
             <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden', marginBottom: 12 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  {['Código', 'Descripción', 'Cant.', 'Unidad', 'Precio Unit.', 'Desc.%', 'Subtotal', ''].map(h => (
+                  {['Código', 'Tipo', 'Descripción', 'Cant.', 'Unidad', 'Precio Unit.', 'Desc.%', 'Subtotal', ''].map(h => (
                     <th key={h} style={{ padding: '8px 10px', background: '#1e3a5f', color: '#fff', fontSize: 11, textAlign: 'left' }}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {selected.detalles.filter(d => d.producto_id).map((d, idx) => {
                     const realIdx = selected.detalles.findIndex(x => x.id === d.id)
+                    const prod = productos.find(p => p.id === d.producto_id)
+                    const tipo = prod?.tipo
+                    const rowBg = idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent'
                     return (
-                      <tr key={d.id} style={{ background: idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent' }}>
-                        <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#4ade80', fontSize: 12, fontFamily: 'monospace', width: 100 }}>{d.codigo_producto}</td>
+                      <Fragment key={d.id}>
+                      <tr style={{ background: rowBg }}>
+                        <td style={{ padding: '6px 8px', borderBottom: 'none', color: '#4ade80', fontSize: 12, fontFamily: 'monospace', width: 100 }}>{d.codigo_producto}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', width: 80 }}>
+                          {tipo && <span style={{ background: tipo === 'Servicio' ? 'rgba(59,130,246,0.2)' : 'rgba(168,85,247,0.2)', color: tipo === 'Servicio' ? '#93c5fd' : '#d8b4fe', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700 }}>{tipo === 'Servicio' ? '🛡️' : '📦'} {tipo}</span>}
+                        </td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#ffffff', fontSize: 12 }}>{d.descripcion}</td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', width: 80 }}>
-                          <input type="number" min="1" value={d.cantidad} onChange={e => updateDetalle(realIdx, 'cantidad', parseInt(e.target.value) || 1)} style={{ ...inputStyle, fontSize: 12, padding: '4px 6px', textAlign: 'center' }} />
+                          <NumeroInput value={d.cantidad} onChange={n => updateDetalle(realIdx, 'cantidad', Math.max(1, Math.round(n)))} decimales={0} style={{ ...inputStyle, fontSize: 12, padding: '4px 6px', textAlign: 'center', height: 'auto' }} />
                         </td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', fontSize: 12, width: 70 }}>{d.unidad_medida}</td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', width: 110 }}>
-                          <input type="number" step="0.01" min="0" value={d.precio_unitario || ''} onChange={e => updateDetalle(realIdx, 'precio_unitario', parseFloat(e.target.value) || 0)} style={{ ...inputStyle, fontSize: 12, padding: '4px 6px', textAlign: 'right' }} />
+                          <NumeroInput value={d.precio_unitario} onChange={n => updateDetalle(realIdx, 'precio_unitario', n)} decimales={2} style={{ ...inputStyle, fontSize: 12, padding: '4px 6px', textAlign: 'right', height: 'auto' }} />
                         </td>
                         <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', width: 70 }}>
-                          <input type="number" step="0.1" min="0" max="100" value={d.descuento_pct} onChange={e => updateDetalle(realIdx, 'descuento_pct', parseFloat(e.target.value) || 0)} style={{ ...inputStyle, fontSize: 12, padding: '4px 6px', textAlign: 'center' }} />
+                          <NumeroInput value={d.descuento_pct} onChange={n => updateDetalle(realIdx, 'descuento_pct', Math.min(100, n))} decimales={2} style={{ ...inputStyle, fontSize: 12, padding: '4px 6px', textAlign: 'center', height: 'auto' }} />
                         </td>
-                        <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#34d399', fontSize: 12, fontWeight: 600, textAlign: 'right', width: 110 }}>${fmtMoney(d.subtotal)}</td>
-                        <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', width: 40 }}>
+                        <td style={{ padding: '6px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#34d399', fontSize: 12, fontWeight: 600, textAlign: 'right', width: 110 }}>{getCurrencyCode(selected.tipo_moneda)} {fmtMoney(d.subtotal)}</td>
+                        <td style={{ padding: '6px 8px', borderBottom: 'none', width: 40 }}>
                           <button type="button" onClick={() => removeDetalle(realIdx)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: 16 }}>×</button>
                         </td>
                       </tr>
+                      <tr style={{ background: rowBg }}>
+                        <td colSpan={9} style={{ padding: '4px 12px 10px 12px', borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
+                          <label style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: 600, display: 'block', marginBottom: 3 }}>Descripción extendida (opcional)</label>
+                          <textarea
+                            value={d.descripcion_extendida || ''}
+                            onChange={e => updateDetalle(realIdx, 'descripcion_extendida', e.target.value)}
+                            placeholder="Detalle adicional del servicio o producto, condiciones, alcance, etc."
+                            rows={Math.max(2, Math.min(10, Math.ceil(((d.descripcion_extendida || '').length + 1) / 90) + (d.descripcion_extendida?.split('\n').length || 1) - 1))}
+                            style={{ ...inputStyle, fontSize: 12, padding: '6px 8px', resize: 'vertical', lineHeight: 1.4, minHeight: 40 }}
+                          />
+                        </td>
+                      </tr>
+                      </Fragment>
                     )
                   })}
                 </tbody>
@@ -628,15 +724,15 @@ export default function CotizacionesPage() {
 
           {/* Totals */}
           <div style={{ textAlign: 'right', marginBottom: 16 }}>
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Subtotal: <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(subtotal)}</span></p>
-            {selected.pct_aiu > 0 && <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>AIU ({selected.pct_aiu}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(aiu)}</span></p>}
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Impuesto ({selected.pct_impuesto}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>${fmtMoney(impuesto)}</span></p>
-            <p style={{ color: '#4ade80', fontSize: 18, fontWeight: 800, marginTop: 4 }}>TOTAL: ${fmtMoney(total)}</p>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Subtotal: <span style={{ color: '#ffffff', fontWeight: 600 }}>{getCurrencyCode(selected.tipo_moneda)} {fmtMoney(subtotal)}</span></p>
+            {selected.pct_ica > 0 && <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>ICA ({selected.pct_ica}%) [retención]: <span style={{ color: '#fca5a5', fontWeight: 600 }}>− {getCurrencyCode(selected.tipo_moneda)} {fmtMoney(ica)}</span></p>}
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>Impuesto ({selected.pct_impuesto}%): <span style={{ color: '#ffffff', fontWeight: 600 }}>{getCurrencyCode(selected.tipo_moneda)} {fmtMoney(impuesto)}</span></p>
+            <p style={{ color: '#4ade80', fontSize: 18, fontWeight: 800, marginTop: 4 }}>TOTAL: {getCurrencyCode(selected.tipo_moneda)} {fmtMoney(total)}</p>
           </div>
 
           <div style={{ gridColumn: 'span 3', marginBottom: 16 }}>
-            <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Observaciones</label>
-            <textarea value={selected.observaciones} onChange={e => setSelected({ ...selected, observaciones: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+            <label style={labelStyle}>Observaciones</label>
+            <textarea value={selected.observaciones} onChange={e => setSelected({ ...selected, observaciones: e.target.value.toUpperCase() })} rows={3} style={{ ...inputUpper, resize: 'vertical' }} />
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
@@ -659,10 +755,10 @@ export default function CotizacionesPage() {
     { header: 'Situación', key: 'situacion', width: 10 },
   ]
   const reportRows = filtered.map(c => {
-    const { total } = calcTotals(c.detalles, c.pct_impuesto, c.pct_aiu)
+    const { total } = calcTotals(c.detalles, c.pct_impuesto, c.pct_ica)
     return {
       codigo: c.codigo, cliente_nombre: c.cliente_nombre, emision: fDate(c.fecha_emision),
-      vence: fDate(c.fecha_vencimiento), items: c.detalles.length, total: `${fmtMoney(total)}`,
+      vence: fDate(c.fecha_vencimiento), items: c.detalles.length, total,
       situacion: c.situacion,
     }
   })
@@ -670,6 +766,18 @@ export default function CotizacionesPage() {
   // ── MAIN VIEW ──
   return (
     <div>
+
+      {/* Backup / Restore — banner superior, siempre visible */}
+      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
+        <BackupRestoreButtons
+          modulo="cotizaciones"
+          label="Cotizaciones"
+          registros={cotizaciones}
+          onClear={() => useCotizacionesStore.setState({ cotizaciones: [] })}
+          onRestore={(rs) => useCotizacionesStore.setState({ cotizaciones: rs })}
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Cotizaciones</h1>
@@ -687,8 +795,15 @@ export default function CotizacionesPage() {
 
       {tab === 'registros' && (
         <>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por código o empresa..."
-            style={{ ...inputStyle, maxWidth: 400, marginBottom: 16 }} />
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por código o empresa..."
+              style={{ ...inputStyle, maxWidth: 400 }} />
+            <select value={filtroLinea} onChange={e => setFiltroLinea(e.target.value)} style={{ ...inputStyle, maxWidth: 260 }}>
+              <option value="">Todas las líneas</option>
+              {lineasServicio.map(l => <option key={l.id} value={l.codigo}>{l.codigo} — {l.nombre}</option>)}
+            </select>
+            {filtroLinea && <button onClick={() => setFiltroLinea('')} style={{ ...btnStyle, background: '#475569', color: '#fff' }}>Limpiar</button>}
+          </div>
           <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
@@ -698,7 +813,7 @@ export default function CotizacionesPage() {
               </tr></thead>
               <tbody>
                 {filtered.map((c, i) => {
-                  const { total } = calcTotals(c.detalles, c.pct_impuesto, c.pct_aiu)
+                  const { total } = calcTotals(c.detalles, c.pct_impuesto, c.pct_ica)
                   const cli = clientes.find(cl => cl.id === c.cliente_id)
                   const linea = lineasServicio.find(l => l.codigo === c.linea_servicio_codigo)
                   return (
@@ -752,8 +867,9 @@ export default function CotizacionesPage() {
 
       {tab === 'reportes' && (
         <ReportPanel title="Reporte de Cotizaciones" columns={reportColumns} rows={reportRows}
-          filters={[{ label: 'Situación', key: 'situacion', options: [...new Set(cotizaciones.map(c => c.situacion).filter(Boolean))] }]} />
+          filters={[{ label: 'Situación', key: 'situacion', options: [...new Set(cotizaciones.map(c => c.situacion).filter(Boolean))] }]}
+          summableKeys={['total']} />
       )}
-    </div>
+</div>
   )
 }

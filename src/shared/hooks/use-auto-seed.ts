@@ -6,12 +6,17 @@ import { useContactosStore } from '@/features/contactos/store/contactos-store'
 import { useProductosStore } from '@/features/productos/store/productos-store'
 import { useOportunidadesStore } from '@/features/oportunidades/store/oportunidades-store'
 import { useProspectosStore } from '@/features/prospectos/store/prospectos-store'
+import { buildNovaProductosSeed } from '@/features/productos/data/seed-nova'
+
+const NO_SEED_KEY = 'crm-no-autoseed'
 
 export function useAutoSeed() {
   const clientesCount = useClientesStore(s => s.clientes.length)
 
   useEffect(() => {
     if (clientesCount > 0) return
+    // Si el usuario explícitamente limpió los datos, no re-sembrar.
+    if (typeof window !== 'undefined' && localStorage.getItem(NO_SEED_KEY) === '1') return
 
     // ========== CLIENTES ==========
     const clientes = [
@@ -190,69 +195,9 @@ export function useAutoSeed() {
     // Capture contacto IDs for oportunidades cross-references
     const conId = contactos.map(c => c.id)
 
-    // ========== PRODUCTOS ==========
-    const productos = [
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-001', descripcion: 'Licencia ERP Cloud - Plan Empresarial (anual)',
-        categoria: 'Software', unidad_medida: 'Unidad', precio_unitario: 24500000,
-        tipo_moneda: 'Pesos Colombianos', observaciones: 'Incluye módulos de contabilidad, inventario, RRHH y CRM. Hasta 50 usuarios.',
-        situacion: 'Activo', fecha_registro: '2025-01-10', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-002', descripcion: 'Servidor Dell PowerEdge R760 - Rack 2U',
-        categoria: 'Hardware', unidad_medida: 'Unidad', precio_unitario: 8500,
-        tipo_moneda: 'Dólares', observaciones: 'Intel Xeon 4th Gen, 128GB RAM, 4x 1.92TB SSD. Garantía 3 años on-site.',
-        situacion: 'Activo', fecha_registro: '2025-01-15', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-003', descripcion: 'Consultoría en Transformación Digital (hora)',
-        categoria: 'Servicios', unidad_medida: 'Unidad', precio_unitario: 350000,
-        tipo_moneda: 'Pesos Colombianos', observaciones: 'Diagnóstico, hoja de ruta, implementación y acompañamiento. Mínimo 40 horas.',
-        situacion: 'Activo', fecha_registro: '2025-02-01', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-004', descripcion: 'Switch Cisco Catalyst 9300-48P PoE+',
-        categoria: 'Hardware', unidad_medida: 'Unidad', precio_unitario: 4200,
-        tipo_moneda: 'Dólares', observaciones: '48 puertos PoE+ Gigabit, stack, licencia DNA Essentials incluida.',
-        situacion: 'Activo', fecha_registro: '2025-02-10', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-005', descripcion: 'Plataforma de Ciberseguridad - SOC Gestionado (mensual)',
-        categoria: 'Servicios', unidad_medida: 'Unidad', precio_unitario: 8900000,
-        tipo_moneda: 'Pesos Colombianos', observaciones: 'Monitoreo 24/7, respuesta a incidentes, reportes ejecutivos mensuales.',
-        situacion: 'Activo', fecha_registro: '2025-03-05', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-006', descripcion: 'Cable de Red UTP Cat 6A - Bobina 305m',
-        categoria: 'Materiales', unidad_medida: 'Caja', precio_unitario: 620000,
-        tipo_moneda: 'Pesos Colombianos', observaciones: 'Cable blindado F/UTP, ideal para data centers y entornos industriales.',
-        situacion: 'Activo', fecha_registro: '2025-03-12', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-007', descripcion: 'Capacitación Microsoft 365 Admin (grupo hasta 15)',
-        categoria: 'Servicios', unidad_medida: 'Unidad', precio_unitario: 5800000,
-        tipo_moneda: 'Pesos Colombianos', observaciones: '40 horas presenciales. Incluye laboratorio, material y certificado.',
-        situacion: 'Activo', fecha_registro: '2025-04-01', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-008', descripcion: 'Firewall FortiGate 200F',
-        categoria: 'Hardware', unidad_medida: 'Unidad', precio_unitario: 6800,
-        tipo_moneda: 'Dólares', observaciones: 'Incluye FortiCare + FortiGuard 1 año.',
-        situacion: 'Activo', fecha_registro: '2025-04-15', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-009', descripcion: 'Desarrollo de App Móvil - MVP (proyecto)',
-        categoria: 'Software', unidad_medida: 'Unidad', precio_unitario: 45000000,
-        tipo_moneda: 'Pesos Colombianos', observaciones: 'iOS + Android con React Native. Diseño UX, desarrollo, QA y publicación en stores.',
-        situacion: 'Activo', fecha_registro: '2025-05-01', seguimientos: []
-      },
-      {
-        id: crypto.randomUUID(), codigo: 'PRD-010', descripcion: 'UPS APC Smart-UPS 3000VA LCD RM 2U',
-        categoria: 'Hardware', unidad_medida: 'Unidad', precio_unitario: 2100,
-        tipo_moneda: 'Dólares', observaciones: 'Autonomía 10 min a carga completa. Onda sinusoidal pura. Montaje en rack.',
-        situacion: 'Activo', fecha_registro: '2025-05-20', seguimientos: []
-      }
-    ]
+    // ========== PRODUCTOS Y SERVICIOS - Nova Seguridad ==========
+    // (catálogo extraído a src/features/productos/data/seed-nova.ts para reutilización)
+    const productos = buildNovaProductosSeed()
 
     // ========== OPORTUNIDADES ==========
     const oportunidades = [
@@ -363,7 +308,7 @@ export function useAutoSeed() {
     ]
 
     // Bulk-load all stores
-    useClientesStore.setState({ clientes })
+    useClientesStore.setState({ clientes: clientes.map(c => ({ ...c, region: '', departamento: '', municipio: c.ciudad || '', ciudad_pueblo: '', representante_legal: '', fecha_inicio_cliente: '', centro_costo: '' })) })
     useContactosStore.setState({ contactos })
     useProductosStore.setState({ productos })
     useOportunidadesStore.setState({ oportunidades })

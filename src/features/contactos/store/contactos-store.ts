@@ -40,6 +40,23 @@ export const useContactosStore = create<ContactosState>()(
       updateContacto: (id, c) => set((s) => ({ contactos: s.contactos.map((r) => r.id === id ? { ...r, ...c } : r) })),
       deleteContacto: (id) => set((s) => ({ contactos: s.contactos.filter((r) => r.id !== id) })),
     }),
-    { name: 'crm-contactos-storage' }
+    {
+      name: 'crm-contactos-storage',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as { contactos?: Contacto[] }
+        if (version < 1 && Array.isArray(state.contactos)) {
+          state.contactos = state.contactos.map(r => ({
+            ...r,
+            nombre: (r.nombre || '').toUpperCase(),
+            apellido: (r.apellido || '').toUpperCase(),
+            cliente_nombre: (r.cliente_nombre || '').toUpperCase(),
+            cargo: (r.cargo || '').toUpperCase(),
+            departamento: (r.departamento || '').toUpperCase(),
+          }))
+        }
+        return state as ContactosState
+      },
+    }
   )
 )

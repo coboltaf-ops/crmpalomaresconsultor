@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { getSmtpConfig } from '@/shared/lib/smtp'
 
 function fmtMoney(n: number) {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -137,11 +138,12 @@ export async function POST(req: Request) {
       </div>`
 
     // Send email
+    const smtp = await getSmtpConfig()
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: true,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.secure,
+      auth: { user: smtp.user, pass: smtp.pass },
     })
 
     await transporter.sendMail({

@@ -51,8 +51,10 @@ export default function ReferenciasPage() {
     setEditId(null); setVNombre(''); setVApellido(''); setVCorreo(''); setVMovil('')
   }
 
-  const inputStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
+  const inputStyle: React.CSSProperties = { padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
 
   const reportOpts = isVendedores ? {
     title: 'Tabla de Referencia: Vendedores',
@@ -71,9 +73,9 @@ export default function ReferenciasPage() {
       <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Tablas de Referencias</h1>
       <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 20 }}>Valores de listas desplegables del sistema</p>
 
-      {/* Table selector */}
+      {/* Table selector — ordenado alfabéticamente por label */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
-        {REFERENCE_TABLES.map(t => (
+        {[...REFERENCE_TABLES].sort((a, b) => a.label.localeCompare(b.label, 'es', { sensitivity: 'base' })).map(t => (
           <button key={t.id} onClick={() => { setSelectedTable(t.id); setEditId(null); setDesc(''); setVNombre(''); setVApellido(''); setVCorreo(''); setVMovil('') }}
             style={{ ...btnStyle, background: selectedTable === t.id ? '#1e3a8a' : 'rgba(255,255,255,0.15)', color: selectedTable === t.id ? '#ffffff' : 'rgba(255,255,255,0.7)', border: selectedTable === t.id ? '1px solid #2563eb' : '1px solid rgba(255,255,255,0.2)' }}>
             {t.label}

@@ -76,6 +76,39 @@ const initialData: RefData = {
     { id: '3', descripcion: 'Reclamo', situacion: true },
     { id: '4', descripcion: 'Sugerencia', situacion: true },
   ],
+  incidencias: [
+    { id: '1', descripcion: 'Falla en servicio de vigilancia', situacion: true },
+    { id: '2', descripcion: 'Inasistencia de personal', situacion: true },
+    { id: '3', descripcion: 'Daño en equipo', situacion: true },
+    { id: '4', descripcion: 'Robo o hurto', situacion: true },
+    { id: '5', descripcion: 'Emergencia médica', situacion: true },
+    { id: '6', descripcion: 'Incumplimiento de protocolo', situacion: true },
+    { id: '7', descripcion: 'Otro', situacion: true },
+  ],
+  tipo_servicio_contrato: [
+    { id: '1', descripcion: 'Vigilancia Física Armada', situacion: true },
+    { id: '2', descripcion: 'Vigilancia Física Desarmada', situacion: true },
+    { id: '3', descripcion: 'Escolta Personal', situacion: true },
+    { id: '4', descripcion: 'CCTV / Monitoreo', situacion: true },
+    { id: '5', descripcion: 'Rastreo Satelital GPS', situacion: true },
+    { id: '6', descripcion: 'Medios Tecnológicos / Alarmas', situacion: true },
+    { id: '7', descripcion: 'Caninos', situacion: true },
+  ],
+  centro_costo: [
+    { id: '1', descripcion: '100001 - Sede Principal', situacion: true },
+    { id: '2', descripcion: '100002 - Sede Norte', situacion: true },
+    { id: '3', descripcion: '100003 - Sede Sur', situacion: true },
+    { id: '4', descripcion: '200001 - Operaciones', situacion: true },
+    { id: '5', descripcion: '300001 - Administrativo', situacion: true },
+  ],
+  situacion_contrato: [
+    { id: '1', descripcion: 'Vigente', situacion: true },
+    { id: '2', descripcion: 'Por Vencer', situacion: true },
+    { id: '3', descripcion: 'Vencido', situacion: true },
+    { id: '4', descripcion: 'Suspendido', situacion: true },
+    { id: '5', descripcion: 'Terminado', situacion: true },
+    { id: '6', descripcion: 'Renovado', situacion: true },
+  ],
   tipo_identificacion: [
     { id: '1', descripcion: 'NIT', situacion: true },
     { id: '2', descripcion: 'Cédula', situacion: true },
@@ -172,19 +205,22 @@ export const useReferenceStore = create<ReferenceState>()(
       data: initialData,
       vendedores: [],
       addItem: (table, item) => set((s) => ({
-        data: { ...s.data, [table]: sortItems([...(s.data[table] || []), item]) }
+        data: { ...s.data, [table]: sortItems([...(s.data[table] || []), { ...item, descripcion: (item.descripcion || '').toUpperCase() }]) }
       })),
       updateItem: (table, id, item) => set((s) => ({
-        data: { ...s.data, [table]: sortItems((s.data[table] || []).map(r => r.id === id ? { ...r, ...item } : r)) }
+        data: { ...s.data, [table]: sortItems((s.data[table] || []).map(r => r.id === id ? { ...r, ...item, descripcion: (item.descripcion ?? r.descripcion ?? '').toUpperCase() } : r)) }
       })),
       deleteItem: (table, id) => set((s) => ({
         data: { ...s.data, [table]: (s.data[table] || []).filter(r => r.id !== id) }
       })),
       addVendedor: (v) => set((s) => ({
-        vendedores: [...s.vendedores, v].sort((a, b) => a.nombre.localeCompare(b.nombre))
+        vendedores: [...s.vendedores, { ...v, nombre: (v.nombre || '').toUpperCase(), apellido: (v.apellido || '').toUpperCase() }]
+          .sort((a, b) => `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`, 'es', { sensitivity: 'base' }))
       })),
       updateVendedor: (id, v) => set((s) => ({
-        vendedores: s.vendedores.map(x => x.id === id ? { ...x, ...v } : x).sort((a, b) => a.nombre.localeCompare(b.nombre))
+        vendedores: s.vendedores
+          .map(x => x.id === id ? { ...x, ...v, nombre: (v.nombre ?? x.nombre ?? '').toUpperCase(), apellido: (v.apellido ?? x.apellido ?? '').toUpperCase() } : x)
+          .sort((a, b) => `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`, 'es', { sensitivity: 'base' }))
       })),
       deleteVendedor: (id) => set((s) => ({
         vendedores: s.vendedores.filter(x => x.id !== id)
@@ -192,17 +228,44 @@ export const useReferenceStore = create<ReferenceState>()(
     }),
     {
       name: 'crm-referencias-storage',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as Partial<ReferenceState>
+        if (version < 1) {
+          // Pasar a MAYÚSCULAS las descripciones de todas las tablas y los vendedores
+          if (state.data) {
+            for (const key of Object.keys(state.data) as ReferenceTableId[]) {
+              const arr = state.data[key]
+              if (Array.isArray(arr)) {
+                state.data[key] = arr.map(r => ({ ...r, descripcion: (r.descripcion || '').toUpperCase() }))
+              }
+            }
+          }
+          if (Array.isArray(state.vendedores)) {
+            state.vendedores = state.vendedores.map(v => ({
+              ...v,
+              nombre: (v.nombre || '').toUpperCase(),
+              apellido: (v.apellido || '').toUpperCase(),
+            }))
+          }
+        }
+        return state as ReferenceState
+      },
       merge: (persisted, current) => {
         const p = persisted as Partial<ReferenceState> | undefined
         const merged = { ...current }
         if (p?.data) {
           merged.data = { ...current.data }
+          // Ordenar alfabéticamente cada tabla de referencia al cargar
           for (const key of Object.keys(current.data) as ReferenceTableId[]) {
-            merged.data[key] = p.data[key] ?? current.data[key]
+            const arr = p.data[key] ?? current.data[key]
+            merged.data[key] = [...arr].sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es', { sensitivity: 'base' }))
           }
         }
         if (p?.vendedores) {
-          merged.vendedores = p.vendedores
+          merged.vendedores = [...p.vendedores].sort((a, b) =>
+            `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`, 'es', { sensitivity: 'base' })
+          )
         }
         return merged
       },

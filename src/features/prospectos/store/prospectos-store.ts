@@ -38,6 +38,23 @@ export const useProspectosStore = create<ProspectosState>()(
       updateProspecto: (id, p) => set((s) => ({ prospectos: s.prospectos.map((r) => r.id === id ? { ...r, ...p } : r) })),
       deleteProspecto: (id) => set((s) => ({ prospectos: s.prospectos.filter((r) => r.id !== id) })),
     }),
-    { name: 'crm-prospectos-storage' }
+    {
+      name: 'crm-prospectos-storage',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as { prospectos?: Prospecto[] }
+        if (version < 1 && Array.isArray(state.prospectos)) {
+          state.prospectos = state.prospectos.map(r => ({
+            ...r,
+            nombre: (r.nombre || '').toUpperCase(),
+            apellido: (r.apellido || '').toUpperCase(),
+            empresa: (r.empresa || '').toUpperCase(),
+            detalle_requerimiento: (r.detalle_requerimiento || '').toUpperCase(),
+            actividad: (r.actividad || '').toUpperCase(),
+          }))
+        }
+        return state as ProspectosState
+      },
+    }
   )
 )

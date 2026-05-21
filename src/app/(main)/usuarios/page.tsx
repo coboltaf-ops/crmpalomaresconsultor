@@ -34,9 +34,18 @@ export default function UsuariosPage() {
     }
   }
 
+  const MAX_USUARIOS_ACTIVOS = 10
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
+    // Validar límite de usuarios activos
+    const activosActuales = usuarios.filter(u => u.situacion === 'Activo' && u.id !== selected.id).length
+    const seraActivo = selected.situacion === 'Activo'
+    if (seraActivo && activosActuales >= MAX_USUARIOS_ACTIVOS) {
+      alert(`Límite alcanzado: máximo ${MAX_USUARIOS_ACTIVOS} usuarios activos permitidos.\n\nDesactive un usuario antes de crear o activar otro.`)
+      return
+    }
     // Assign permisos from the role
     const rol = roles.find(r => r.nombre === selected.rol)
     const withPermisos = { ...selected, permisos: rol?.permisos || selected.permisos }
@@ -91,8 +100,10 @@ export default function UsuariosPage() {
     usuarios.filter(u => u.rol === selectedRolObj.nombre).forEach(u => updateUsuario(u.id, { permisos: newPermisos }))
   }
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
   const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? '#1e3a8a' : 'rgba(255,255,255,0.15)', color: active ? '#ffffff' : 'rgba(255,255,255,0.7)', border: active ? '1px solid #2563eb' : '1px solid rgba(255,255,255,0.2)' })
 
   const reportOpts = {

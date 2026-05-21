@@ -11,8 +11,15 @@ export interface Cliente {
   nro_documento: string
   razon_social: string
   nombre_comercial: string
+  representante_legal: string
+  fecha_inicio_cliente: string
+  centro_costo: string
   actividad: string
   direccion: string
+  region: string
+  departamento: string
+  municipio: string
+  ciudad_pueblo: string
   ciudad: string
   pais: string
   codigo_postal: string
@@ -53,6 +60,46 @@ export const useClientesStore = create<ClientesState>()(
     }),
     {
       name: 'crm-clientes-storage',
+      version: 6,
+      migrate: (persisted: unknown, version: number) => {
+        const state = (persisted ?? {}) as { clientes?: Array<Partial<Cliente> & { poblacion?: number }> }
+        if (version < 3 && Array.isArray(state.clientes)) {
+          state.clientes = state.clientes.map(c => {
+            const { poblacion: _drop, ...rest } = c
+            void _drop
+            return {
+              region: '',
+              departamento: '',
+              municipio: c.ciudad || '',
+              ciudad_pueblo: '',
+              ...rest,
+            }
+          })
+        }
+        if (version < 4 && Array.isArray(state.clientes)) {
+          state.clientes = state.clientes.map(c => ({
+            representante_legal: '',
+            fecha_inicio_cliente: '',
+            ...c,
+          }))
+        }
+        if (version < 5 && Array.isArray(state.clientes)) {
+          state.clientes = state.clientes.map(c => ({
+            centro_costo: '',
+            ...c,
+          }))
+        }
+        if (version < 6 && Array.isArray(state.clientes)) {
+          state.clientes = state.clientes.map(c => ({
+            ...c,
+            razon_social: (c.razon_social || '').toUpperCase(),
+            nombre_comercial: (c.nombre_comercial || '').toUpperCase(),
+            representante_legal: (c.representante_legal || '').toUpperCase(),
+            actividad: (c.actividad || '').toUpperCase(),
+          }))
+        }
+        return state as ClientesState
+      },
       merge: (persisted, current) => {
         const state = { ...current, ...(persisted as Partial<ClientesState>) }
         state.clientes = state.clientes.map(c =>

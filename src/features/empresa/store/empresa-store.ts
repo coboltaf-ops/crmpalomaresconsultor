@@ -16,6 +16,7 @@ export interface Empresa {
   pagina_web: string
   logo_url: string
   representante_legal: string
+  centro_costo: string
   direccion: string
   ciudad: string
   pais: string

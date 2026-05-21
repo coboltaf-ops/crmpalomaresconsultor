@@ -1,13 +1,15 @@
 'use client'
+import { logAudit, computarDiff } from '@/shared/lib/audit'
 import { useState } from 'react'
 import { useTareasStore, Tarea } from '@/features/tareas/store/tareas-store'
 import { useCurrentUserStore } from '@/features/usuarios-gestion/store/current-user-store'
-import { useReferenceStore } from '@/features/referencias/store/reference-store'
+import { usePersonalStore } from '@/features/personal/store/personal-store'
 import { nextConsecutivo } from '@/shared/lib/consecutivo'
 import { usePermisos } from '@/shared/hooks/use-permisos'
 import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import DocumentosPanel from '@/shared/components/documentos-panel'
 import ReportPanel from '@/shared/components/report-panel'
+import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 
 function todayCO() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
 function fDate(d: string) { if (!d) return '—'; const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}` }
@@ -18,12 +20,12 @@ const emptyTarea = (codigo: string): Tarea => ({
   descripcion: '', situacion: 'Pendiente', fecha_registro: todayCO(), seguimientos: [],
 })
 
-const colorMap: Record<string, { bg: string; color: string; border: string }> = {
-  yellow: { bg: 'rgba(234,179,8,0.15)', color: '#eab308', border: 'rgba(234,179,8,0.3)' },
-  blue: { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: 'rgba(59,130,246,0.3)' },
-  green: { bg: 'rgba(34,197,94,0.15)', color: '#22c55e', border: 'rgba(34,197,94,0.3)' },
-  gray: { bg: 'rgba(156,163,175,0.15)', color: '#9ca3af', border: 'rgba(156,163,175,0.3)' },
-  red: { bg: 'rgba(239,68,68,0.15)', color: '#ef4444', border: 'rgba(239,68,68,0.3)' },
+const colorMap: Record<string, { bg: string; bgIntense: string; color: string; colorIntense: string; border: string; cardBg: string; cardBorder: string }> = {
+  yellow: { bg: 'rgba(234,179,8,0.15)', bgIntense: 'rgba(234,179,8,0.35)', color: '#eab308', colorIntense: '#fde047', border: 'rgba(234,179,8,0.5)', cardBg: 'rgba(234,179,8,0.18)', cardBorder: 'rgba(234,179,8,0.45)' },
+  blue:   { bg: 'rgba(59,130,246,0.15)', bgIntense: 'rgba(59,130,246,0.35)', color: '#60a5fa', colorIntense: '#93c5fd', border: 'rgba(59,130,246,0.5)', cardBg: 'rgba(59,130,246,0.18)', cardBorder: 'rgba(59,130,246,0.45)' },
+  green:  { bg: 'rgba(34,197,94,0.15)', bgIntense: 'rgba(34,197,94,0.35)', color: '#22c55e', colorIntense: '#86efac', border: 'rgba(34,197,94,0.5)', cardBg: 'rgba(34,197,94,0.18)', cardBorder: 'rgba(34,197,94,0.45)' },
+  gray:   { bg: 'rgba(156,163,175,0.15)', bgIntense: 'rgba(156,163,175,0.35)', color: '#9ca3af', colorIntense: '#d1d5db', border: 'rgba(156,163,175,0.5)', cardBg: 'rgba(156,163,175,0.18)', cardBorder: 'rgba(156,163,175,0.45)' },
+  red:    { bg: 'rgba(239,68,68,0.15)', bgIntense: 'rgba(239,68,68,0.35)', color: '#ef4444', colorIntense: '#fca5a5', border: 'rgba(239,68,68,0.5)', cardBg: 'rgba(239,68,68,0.18)', cardBorder: 'rgba(239,68,68,0.45)' },
 }
 
 type Vista = 'lista' | 'form' | 'detalle'
@@ -33,7 +35,7 @@ export default function TareasPage() {
   const user = useCurrentUserStore(s => s.user)
   const permisos = usePermisos('tareas')
   const { tareas, situaciones, addTarea, updateTarea, deleteTarea } = useTareasStore()
-  const vendedores = useReferenceStore(s => s.vendedores)
+  const personalEmpresa = usePersonalStore(s => s.personal).filter(p => p.situacion === 'Activo')
 
   const [vista, setVista] = useState<Vista>('lista')
   const [vistaLista, setVistaLista] = useState<VistaLista>('tabla')
@@ -47,12 +49,13 @@ export default function TareasPage() {
 
   if (!user) return null
 
-  const personas = vendedores.filter(v => v.situacion).map(v => `${v.nombre} ${v.apellido}`)
+  const personas = personalEmpresa.map(p => `${p.nombre} ${p.apellido}`)
 
   // Styles
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
-  const inputStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none', width: '100%' }
-  const labelStyle: React.CSSProperties = { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginBottom: 4, display: 'block' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
+  const inputStyle: React.CSSProperties = { padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44, width: '100%' }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, marginBottom: 6, display: 'block' }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
   const cardStyle: React.CSSProperties = { background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,255,255,0.1)' }
 
   const situacionBadge = (sit: string): React.CSSProperties => {
@@ -70,6 +73,13 @@ export default function TareasPage() {
     return true
   }).sort((a, b) => b.fecha_registro.localeCompare(a.fecha_registro))
 
+  const auditParams = () => ({
+    usuario: user?.usuario || 'desconocido',
+    usuario_nombre: `${user?.nombre || ''} ${user?.apellido || ''}`.trim(),
+    rol: user?.rol || '',
+    modulo: 'tareas',
+  })
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
@@ -80,9 +90,9 @@ export default function TareasPage() {
     const tareaFinal = esNueva ? { ...selected, id: crypto.randomUUID() } : selected
 
     if (esNueva) {
-      addTarea(tareaFinal)
+      addTarea(tareaFinal); logAudit({ ...auditParams(), accion: "CREAR", registro_codigo: selected.codigo, registro_nombre: selected.descripcion })
       // Enviar correo al ejecutor
-      const ejecutor = vendedores.find(v => `${v.nombre} ${v.apellido}` === selected.persona_ejecuta && v.correo)
+      const ejecutor = personalEmpresa.find(p => `${p.nombre} ${p.apellido}` === selected.persona_ejecuta && p.correo)
       if (ejecutor?.correo) {
         try {
           await fetch('/api/send-tarea-email', {
@@ -100,7 +110,7 @@ export default function TareasPage() {
         } catch { /* no bloquear si falla el email */ }
       }
     } else {
-      updateTarea(selected.id, selected)
+      const _anterior = tareas.find(x => x.id === selected.id); updateTarea(selected.id, selected); logAudit({ ...auditParams(), accion: "MODIFICAR", registro_codigo: selected.codigo, registro_nombre: selected.descripcion, detalle: computarDiff(_anterior as unknown as Record<string, unknown>, selected as unknown as Record<string, unknown>) })
     }
     setSelected(null)
     setVista('lista')
@@ -231,9 +241,9 @@ export default function TareasPage() {
             <div />
             <div style={{ gridColumn: 'span 3' }}>
               <label style={labelStyle}>Descripción *</label>
-              <textarea value={selected.descripcion} onChange={e => setSelected({ ...selected, descripcion: e.target.value })} required rows={4}
+              <textarea value={selected.descripcion} onChange={e => setSelected({ ...selected, descripcion: e.target.value.toUpperCase() })} required rows={4}
                 placeholder="Describa la tarea con detalle..."
-                style={{ ...inputStyle, resize: 'vertical', minHeight: 100 }} />
+                style={{ ...inputUpper, resize: 'vertical', minHeight: 100 }} />
             </div>
           </div>
           <div style={{ marginTop: 20, display: 'flex', gap: 10 }}>
@@ -260,41 +270,59 @@ export default function TareasPage() {
             onDragOver={e => e.preventDefault()}
             onDrop={() => handleDrop(sit.nombre)}
             style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 10, border: `1px solid ${c.border}`, minHeight: 300 }}>
-            {/* Column header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '8px 10px', background: c.bg, borderRadius: 8 }}>
-              <span style={{ color: c.color, fontSize: 13, fontWeight: 700 }}>{sit.nombre}</span>
-              <span style={{ color: c.color, fontSize: 12, fontWeight: 800, background: `${c.color}20`, padding: '2px 8px', borderRadius: 10 }}>{tareasCol.length}</span>
+            {/* Column header — color intenso de la situación */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '10px 12px', background: c.bgIntense, borderRadius: 8, border: `1px solid ${c.border}` }}>
+              <span style={{ color: c.colorIntense, fontSize: 14, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5 }}>{sit.nombre}</span>
+              <span style={{ color: '#fff', fontSize: 12, fontWeight: 900, background: c.color, padding: '3px 10px', borderRadius: 12 }}>{tareasCol.length}</span>
             </div>
-            {/* Cards */}
+            {/* Cards — fondo según situación */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {tareasCol.map(t => (
+              {tareasCol.map(t => {
+                const labelKanban: React.CSSProperties = { color: 'rgba(255,255,255,0.6)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 1 }
+                const valueKanban: React.CSSProperties = { color: '#fff', fontSize: 12, fontWeight: 700, lineHeight: 1.3 }
+                return (
                 <div key={t.id} draggable
                   onDragStart={() => setDragId(t.id)}
                   onClick={() => { setViewDetail(t); setVista('detalle') }}
-                  style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: 12, border: '1px solid rgba(255,255,255,0.1)', cursor: 'grab', transition: 'transform 0.15s', }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 700 }}>{t.codigo}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>⋮⋮</span>
+                  style={{ background: c.cardBg, borderRadius: 10, padding: 12, border: `1px solid ${c.cardBorder}`, cursor: 'grab', transition: 'transform 0.15s' }}>
+                  {/* Header: código */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 6, borderBottom: `1px solid ${c.cardBorder}` }}>
+                    <span style={{ color: c.colorIntense, fontSize: 13, fontWeight: 900 }}>{t.codigo}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>⋮⋮</span>
                   </div>
-                  <p style={{ color: '#fff', fontSize: 12, margin: '0 0 8px', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{t.descripcion}</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 10 }}>👤</span>
-                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>{t.persona_ejecuta}</span>
+
+                  {/* Detalle */}
+                  <div style={{ marginBottom: 8 }}>
+                    <p style={labelKanban}>📝 Detalle de la tarea</p>
+                    <p style={{ ...valueKanban, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>{t.descripcion || '—'}</p>
+                  </div>
+
+                  {/* Fechas — grid 2 cols */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    <div>
+                      <p style={labelKanban}>📅 Fecha Solicitud</p>
+                      <p style={valueKanban}>{t.fecha_registro ? fDate(t.fecha_registro) : '—'}</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 10 }}>📅</span>
-                      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>{fDate(t.fecha_requerida_fin)}</span>
+                    <div>
+                      <p style={labelKanban}>⏳ Fecha a Terminar</p>
+                      <p style={{ ...valueKanban, color: c.colorIntense }}>{t.fecha_requerida_fin ? fDate(t.fecha_requerida_fin) : '—'}</p>
                     </div>
-                    {t.fecha_asignacion && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ fontSize: 10 }}>🗓</span>
-                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>Asig: {fDate(t.fecha_asignacion)}</span>
-                      </div>
-                    )}
+                  </div>
+
+                  {/* Personas — grid 2 cols */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <p style={labelKanban}>👔 Persona que Asigna</p>
+                      <p style={valueKanban}>{t.persona_asigna || '—'}</p>
+                    </div>
+                    <div>
+                      <p style={labelKanban}>👤 Persona que Ejecuta</p>
+                      <p style={valueKanban}>{t.persona_ejecuta || '—'}</p>
+                    </div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
               {tareasCol.length === 0 && (
                 <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 11, textAlign: 'center', padding: 20 }}>Sin tareas</p>
               )}
@@ -334,6 +362,18 @@ export default function TareasPage() {
   // ═══════════ LISTA PRINCIPAL ═══════════
   return (
     <div>
+
+      {/* Backup / Restore — banner superior, siempre visible */}
+      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
+        <BackupRestoreButtons
+          modulo="tareas"
+          label="Tareas"
+          registros={tareas}
+          onClear={() => useTareasStore.setState({ tareas: [] })}
+          onRestore={(rs) => useTareasStore.setState({ tareas: rs })}
+        />
+      </div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -356,8 +396,79 @@ export default function TareasPage() {
             </button>
           </div>
           {permisos.editar && (
-            <button onClick={() => { setSelected(emptyTarea(nextConsecutivo('TAR-', tareas.map(t => t.codigo)).codigo)); setVista('form') }}
-              style={{ ...btnStyle, background: '#0f1b3d', color: '#fff' }}>+ Nueva Tarea</button>
+            <>
+              <button onClick={() => {
+                if (!confirm('Esto agregará 6 tareas de ejemplo (2 en proceso, 2 completadas, 2 vencidas). ¿Continuar?')) return
+                const hoy = new Date()
+                const offset = (dias: number) => {
+                  const d = new Date(hoy)
+                  d.setDate(d.getDate() + dias)
+                  return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+                }
+                const resolvePersona = (idx: number) => personas[idx % personas.length] || 'Luis Rodríguez'
+                const asigna = resolvePersona(0)
+                const responsable = resolvePersona(1)
+                const ejemplos: Tarea[] = [
+                  // EN PROCESO
+                  {
+                    id: crypto.randomUUID(), codigo: nextConsecutivo('TAR-', tareas.map(t => t.codigo)).codigo,
+                    fecha_asignacion: offset(-3), hora_asignacion: '09:00',
+                    persona_asigna: asigna, persona_ejecuta: responsable,
+                    fecha_requerida_fin: offset(7), fecha_real_fin: '',
+                    descripcion: 'Instalación de 4 cámaras IP CCTV en sede norte del cliente. Incluye cableado, configuración de NVR y pruebas de monitoreo remoto.',
+                    situacion: 'En Proceso', fecha_registro: offset(-3), seguimientos: [],
+                  },
+                  {
+                    id: crypto.randomUUID(), codigo: `TAR-${String(parseInt(nextConsecutivo('TAR-', tareas.map(t => t.codigo)).codigo.replace(/\D/g,''))+1).padStart(5,'0')}`,
+                    fecha_asignacion: offset(-1), hora_asignacion: '10:30',
+                    persona_asigna: asigna, persona_ejecuta: responsable,
+                    fecha_requerida_fin: offset(5), fecha_real_fin: '',
+                    descripcion: 'Capacitación técnica al equipo de supervisores sobre uso de plataforma de rastreo GPS y protocolos de respuesta ante alertas.',
+                    situacion: 'En Proceso', fecha_registro: offset(-1), seguimientos: [],
+                  },
+                  // COMPLETADAS
+                  {
+                    id: crypto.randomUUID(), codigo: `TAR-${String(parseInt(nextConsecutivo('TAR-', tareas.map(t => t.codigo)).codigo.replace(/\D/g,''))+2).padStart(5,'0')}`,
+                    fecha_asignacion: offset(-20), hora_asignacion: '08:00',
+                    persona_asigna: asigna, persona_ejecuta: responsable,
+                    fecha_requerida_fin: offset(-10), fecha_real_fin: offset(-8),
+                    descripcion: 'Revisión mensual de pólizas de Responsabilidad Civil (RSE) de clientes activos con contratos vigentes superiores a $50M.',
+                    situacion: 'Completada', fecha_registro: offset(-20), seguimientos: [],
+                  },
+                  {
+                    id: crypto.randomUUID(), codigo: `TAR-${String(parseInt(nextConsecutivo('TAR-', tareas.map(t => t.codigo)).codigo.replace(/\D/g,''))+3).padStart(5,'0')}`,
+                    fecha_asignacion: offset(-15), hora_asignacion: '14:15',
+                    persona_asigna: asigna, persona_ejecuta: responsable,
+                    fecha_requerida_fin: offset(-7), fecha_real_fin: offset(-5),
+                    descripcion: 'Preparación y envío de cotización formal para prospecto ABC Industrial (vigilancia armada 24/7 + CCTV).',
+                    situacion: 'Completada', fecha_registro: offset(-15), seguimientos: [],
+                  },
+                  // VENCIDAS (fecha requerida pasada, sin fecha real, aún en proceso/pendiente)
+                  {
+                    id: crypto.randomUUID(), codigo: `TAR-${String(parseInt(nextConsecutivo('TAR-', tareas.map(t => t.codigo)).codigo.replace(/\D/g,''))+4).padStart(5,'0')}`,
+                    fecha_asignacion: offset(-20), hora_asignacion: '11:00',
+                    persona_asigna: asigna, persona_ejecuta: responsable,
+                    fecha_requerida_fin: offset(-5), fecha_real_fin: '',
+                    descripcion: 'Visita técnica de mantenimiento preventivo a sistema de alarmas del cliente PQR Logistics sede Medellín.',
+                    situacion: 'Pendiente', fecha_registro: offset(-20), seguimientos: [],
+                  },
+                  {
+                    id: crypto.randomUUID(), codigo: `TAR-${String(parseInt(nextConsecutivo('TAR-', tareas.map(t => t.codigo)).codigo.replace(/\D/g,''))+5).padStart(5,'0')}`,
+                    fecha_asignacion: offset(-12), hora_asignacion: '07:30',
+                    persona_asigna: asigna, persona_ejecuta: responsable,
+                    fecha_requerida_fin: offset(-3), fecha_real_fin: '',
+                    descripcion: 'Auditoría operativa al personal de vigilancia de la zona sur: verificación de turnos, dotación y cumplimiento de protocolos.',
+                    situacion: 'En Proceso', fecha_registro: offset(-12), seguimientos: [],
+                  },
+                ]
+                ejemplos.forEach(t => addTarea(t))
+                alert(`✅ ${ejemplos.length} tareas de ejemplo agregadas.`)
+              }} style={{ ...btnStyle, background: 'rgba(168,85,247,0.15)', color: '#d8b4fe', border: '1px solid rgba(168,85,247,0.4)' }}>
+                ✨ Cargar ejemplos
+              </button>
+              <button onClick={() => { setSelected(emptyTarea(nextConsecutivo('TAR-', tareas.map(t => t.codigo)).codigo)); setVista('form') }}
+                style={{ ...btnStyle, background: '#0f1b3d', color: '#fff' }}>+ Nueva Tarea</button>
+            </>
           )}
         </div>
       </div>
@@ -398,7 +509,7 @@ export default function TareasPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,0.08)' }}>
-                    {['Código', 'F. Asignación', 'Asigna', 'Ejecuta', 'F. Requerida', 'F. Real Fin', 'Descripción', 'Situación', 'Acciones'].map(h => (
+                    {['Código', 'Persona que Asigna', 'Fecha de Asignación', 'Detalle del Requerimiento', 'Persona que Ejecuta', 'Fecha a ser Finalizada', 'Fecha Real de Finalización', 'Situación', 'Acciones'].map(h => (
                       <th key={h} style={{ padding: '12px 14px', textAlign: 'left', color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>{h}</th>
                     ))}
                   </tr>
@@ -407,12 +518,12 @@ export default function TareasPage() {
                   {filtered.map(t => (
                     <tr key={t.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       <td style={{ padding: '10px 14px', color: '#60a5fa', fontSize: 13, fontWeight: 600 }}>{t.codigo}</td>
+                      <td style={{ padding: '10px 14px', color: 'rgba(255,255,255,0.9)', fontSize: 13 }}>{t.persona_asigna}</td>
                       <td style={{ padding: '10px 14px', color: '#fff', fontSize: 13 }}>{fDate(t.fecha_asignacion)}</td>
-                      <td style={{ padding: '10px 14px', color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{t.persona_asigna}</td>
+                      <td style={{ padding: '10px 14px', color: 'rgba(255,255,255,0.7)', fontSize: 12, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={t.descripcion}>{t.descripcion}</td>
                       <td style={{ padding: '10px 14px', color: '#fff', fontSize: 13 }}>{t.persona_ejecuta}</td>
                       <td style={{ padding: '10px 14px', color: '#eab308', fontSize: 13 }}>{fDate(t.fecha_requerida_fin)}</td>
                       <td style={{ padding: '10px 14px', color: t.fecha_real_fin ? '#22c55e' : 'rgba(255,255,255,0.3)', fontSize: 13 }}>{fDate(t.fecha_real_fin)}</td>
-                      <td style={{ padding: '10px 14px', color: 'rgba(255,255,255,0.7)', fontSize: 12, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.descripcion}</td>
                       <td style={{ padding: '10px 14px' }}><span style={situacionBadge(t.situacion)}>{t.situacion}</span></td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', gap: 6 }}>
@@ -443,6 +554,6 @@ export default function TareasPage() {
           <ReportPanel title="Reporte de Tareas" columns={reportColumns} rows={reportRows} filters={reportFilters} />
         </>
       )}
-    </div>
+</div>
   )
 }

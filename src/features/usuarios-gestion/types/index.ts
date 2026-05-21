@@ -19,15 +19,20 @@ export interface Usuario {
 
 export const MODULOS_CRM = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'agente', label: 'Agente Virtual' },
   { id: 'clientes', label: 'Empresas' },
   { id: 'contactos', label: 'Contactos' },
   { id: 'oportunidades', label: 'Oportunidades' },
-  { id: 'productos', label: 'Lista de Productos' },
+  { id: 'productos', label: 'Productos y Servicios' },
   { id: 'cotizaciones', label: 'Cotizaciones' },
+  { id: 'contratos', label: 'Contratos de Servicio' },
   { id: 'prospectos', label: 'Prospectos' },
   { id: 'pqrs', label: 'PQRS' },
   { id: 'tareas', label: 'Tareas' },
+  { id: 'personal', label: 'Personal Empresa' },
+  { id: 'centros-costo', label: 'Centros de Costo' },
   { id: 'referencias', label: 'Tablas de Referencias' },
+  { id: 'lineas-servicio', label: 'Líneas de Servicio' },
 ]
 
 export const ROLES = ['Admin', 'Ventas', 'Soporte', 'Gerencia']

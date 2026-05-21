@@ -1,4 +1,5 @@
 'use client'
+import { logAudit, computarDiff } from '@/shared/lib/audit'
 import { useState, useEffect } from 'react'
 import { useProspectosStore, Prospecto } from '@/features/prospectos/store/prospectos-store'
 import { useReferenceStore } from '@/features/referencias/store/reference-store'
@@ -11,8 +12,9 @@ import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import DocumentosPanel from '@/shared/components/documentos-panel'
 import { useAsistenteStore } from '@/shared/stores/asistente-store'
 import { Seguimiento } from '@/shared/types/seguimiento'
+import WhatsAppButton from '@/shared/components/whatsapp-button'
+import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 
-const today = todayColombia()
 
 interface ProspectoExterno {
   id: string; nombre: string; apellido: string; empresa: string; correo: string
@@ -23,7 +25,7 @@ interface ProspectoExterno {
 const emptyProspecto = (codigo: string): Prospecto => ({
   id: '', codigo, nombre: '', apellido: '', empresa: '', correo: '', nro_movil: '',
   origen_prospecto: '', detalle_requerimiento: '', actividad: '', ciudad: '', pais: 'Colombia',
-  situacion: 'Nuevo', fecha_registro: today, seguimientos: [],
+  situacion: 'Nuevo', fecha_registro: todayColombia(), seguimientos: [],
 })
 
 export default function ProspectosPage() {
@@ -71,8 +73,8 @@ export default function ProspectosPage() {
       empresa: ext.empresa, correo: ext.correo, nro_movil: ext.nro_movil,
       origen_prospecto: 'Formulario Web', detalle_requerimiento: ext.descripcion_requerimiento,
       actividad: '', ciudad: '', pais: 'Colombia', situacion: 'Sin Contactar',
-      fecha_registro: ext.fecha_registro || today, seguimientos: [{
-        id: crypto.randomUUID(), fecha: today, detalle: `Prospecto importado desde formulario web. Registrado el ${ext.fecha_registro} a las ${ext.hora_registro}.`,
+      fecha_registro: ext.fecha_registro || todayColombia(), seguimientos: [{
+        id: crypto.randomUUID(), fecha: todayColombia(), detalle: `Prospecto importado desde formulario web. Registrado el ${ext.fecha_registro} a las ${ext.hora_registro}.`,
         persona_actividad: `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`.trim(), situacion: 'Sin Contactar', usuario: currentUser?.nombre || 'Sistema',
       }],
     })
@@ -88,8 +90,8 @@ export default function ProspectosPage() {
         empresa: ext.empresa, correo: ext.correo, nro_movil: ext.nro_movil,
         origen_prospecto: 'Formulario Web', detalle_requerimiento: ext.descripcion_requerimiento,
         actividad: '', ciudad: '', pais: 'Colombia', situacion: 'Sin Contactar',
-        fecha_registro: ext.fecha_registro || today, seguimientos: [{
-          id: crypto.randomUUID(), fecha: today, detalle: `Prospecto importado desde formulario web. Registrado el ${ext.fecha_registro} a las ${ext.hora_registro}.`,
+        fecha_registro: ext.fecha_registro || todayColombia(), seguimientos: [{
+          id: crypto.randomUUID(), fecha: todayColombia(), detalle: `Prospecto importado desde formulario web. Registrado el ${ext.fecha_registro} a las ${ext.hora_registro}.`,
           persona_actividad: `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`.trim(), situacion: 'Sin Contactar', usuario: currentUser?.nombre || 'Sistema',
         }],
       })
@@ -107,11 +109,18 @@ export default function ProspectosPage() {
       p.empresa.toLowerCase().includes(s) || p.codigo.toLowerCase().includes(s)
   })
 
+  const auditParams = () => ({
+    usuario: currentUser?.usuario || 'desconocido',
+    usuario_nombre: `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`.trim(),
+    rol: currentUser?.rol || '',
+    modulo: 'prospectos',
+  })
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
     if (selected.id) {
-      updateProspecto(selected.id, selected)
+      const _anterior = prospectos.find(x => x.id === selected.id); updateProspecto(selected.id, selected); logAudit({ ...auditParams(), accion: "MODIFICAR", registro_codigo: selected.codigo, registro_nombre: `${selected.nombre} ${selected.apellido}`, detalle: computarDiff(_anterior as unknown as Record<string, unknown>, selected as unknown as Record<string, unknown>) })
     } else {
       addProspecto({ ...selected, id: crypto.randomUUID() })
     }
@@ -130,8 +139,10 @@ export default function ProspectosPage() {
     return map[s] || {}
   }
 
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#ffffff', fontSize: 13, outline: 'none' }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600 }
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
+  const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
   const tabBtnStyle = (active: boolean): React.CSSProperties => ({ ...btnStyle, background: active ? '#1e3a8a' : 'rgba(255,255,255,0.15)', color: active ? '#ffffff' : 'rgba(255,255,255,0.7)', border: active ? '1px solid #2563eb' : '1px solid rgba(255,255,255,0.2)' })
 
   // View detail
@@ -193,66 +204,73 @@ export default function ProspectosPage() {
           <h2 style={{ color: '#ffffff', fontSize: 18, fontWeight: 700, marginBottom: 20 }}>{selected.id ? 'Editar' : 'Nuevo'} Prospecto</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Código</label>
+              <label style={labelStyle}>Código</label>
               <input value={selected.codigo} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Nombre *</label>
-              <input value={selected.nombre} onChange={e => setSelected({ ...selected, nombre: e.target.value })} required style={inputStyle} />
+              <label style={labelStyle}>Fecha de Registro</label>
+              <input value={fDate(selected.fecha_registro)} readOnly style={{ ...inputStyle, opacity: 0.5 }} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Apellido *</label>
-              <input value={selected.apellido} onChange={e => setSelected({ ...selected, apellido: e.target.value })} required style={inputStyle} />
+              <label style={labelStyle}>Nombre *</label>
+              <input value={selected.nombre} onChange={e => setSelected({ ...selected, nombre: e.target.value.toUpperCase() })} required style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Empresa</label>
-              <input value={selected.empresa} onChange={e => setSelected({ ...selected, empresa: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Apellido *</label>
+              <input value={selected.apellido} onChange={e => setSelected({ ...selected, apellido: e.target.value.toUpperCase() })} required style={inputUpper} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Correo *</label>
+              <label style={labelStyle}>Empresa</label>
+              <input value={selected.empresa} onChange={e => setSelected({ ...selected, empresa: e.target.value.toUpperCase() })} style={inputUpper} />
+            </div>
+            <div>
+              <label style={labelStyle}>Correo *</label>
               <input type="email" value={selected.correo} onChange={e => setSelected({ ...selected, correo: e.target.value })} required style={inputStyle} />
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Nro Móvil</label>
-              <input value={selected.nro_movil} onChange={e => setSelected({ ...selected, nro_movil: e.target.value })} style={inputStyle} />
+              <label style={labelStyle}>Nro Móvil</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={selected.nro_movil} onChange={e => setSelected({ ...selected, nro_movil: e.target.value })} style={inputStyle} />
+                <WhatsAppButton telefono={selected.nro_movil} nombre={`${selected.nombre} ${selected.apellido}`.trim()} compacto />
+              </div>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Origen Prospecto *</label>
+              <label style={labelStyle}>Origen Prospecto *</label>
               <select value={selected.origen_prospecto} onChange={e => setSelected({ ...selected, origen_prospecto: e.target.value })} required style={inputStyle}>
                 <option value="">Seleccionar...</option>
                 {refOptions('origen_prospecto').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Actividad</label>
-              <select value={selected.actividad} onChange={e => setSelected({ ...selected, actividad: e.target.value })} style={inputStyle}>
+              <label style={labelStyle}>Actividad</label>
+              <select value={selected.actividad} onChange={e => setSelected({ ...selected, actividad: e.target.value.toUpperCase() })} style={inputStyle}>
                 <option value="">Seleccionar...</option>
                 {refOptions('actividad_cliente').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Situación</label>
+              <label style={labelStyle}>Situación</label>
               <select value={selected.situacion} onChange={e => setSelected({ ...selected, situacion: e.target.value })} style={inputStyle}>
                 {refOptions('situacion_prospecto').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Ciudad</label>
+              <label style={labelStyle}>Ciudad</label>
               <select value={selected.ciudad} onChange={e => setSelected({ ...selected, ciudad: e.target.value })} style={inputStyle}>
                 <option value="">Seleccionar...</option>
                 {refOptions('ciudad').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>País</label>
+              <label style={labelStyle}>País</label>
               <select value={selected.pais} onChange={e => setSelected({ ...selected, pais: e.target.value })} style={inputStyle}>
                 <option value="">Seleccionar...</option>
                 {refOptions('pais').map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
             <div style={{ gridColumn: 'span 3' }}>
-              <label style={{ color: '#ffffff', fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Detalle Requerimiento</label>
-              <textarea value={selected.detalle_requerimiento} onChange={e => setSelected({ ...selected, detalle_requerimiento: e.target.value })} rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+              <label style={labelStyle}>Detalle Requerimiento</label>
+              <textarea value={selected.detalle_requerimiento} onChange={e => setSelected({ ...selected, detalle_requerimiento: e.target.value.toUpperCase() })} rows={3} style={{ ...inputUpper, resize: 'vertical' }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
@@ -288,6 +306,18 @@ export default function ProspectosPage() {
 
   return (
     <div>
+
+      {/* Backup / Restore — banner superior, siempre visible */}
+      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
+        <BackupRestoreButtons
+          modulo="prospectos"
+          label="Prospectos"
+          registros={prospectos}
+          onClear={() => useProspectosStore.setState({ prospectos: [] })}
+          onRestore={(rs) => useProspectosStore.setState({ prospectos: rs })}
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Prospectos</h1>
@@ -366,7 +396,7 @@ export default function ProspectosPage() {
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button onClick={() => setViewDetail(p)} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#ea580c', color: '#ffffff', border: '1px solid #f97316' }}>Ver</button>
                         {permisos.editar && <button onClick={() => { setSelected(p); setIsForm(true) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#15803d', color: '#ffffff', border: '1px solid #16a34a' }}>Editar</button>}
-                        {permisos.eliminar && <button onClick={() => { if (confirm(`¿Eliminar prospecto "${p.nombre} ${p.apellido}"?`)) deleteProspecto(p.id) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#dc2626', color: '#ffffff', border: '1px solid #ef4444' }}>Eliminar</button>}
+                        {permisos.eliminar && <button onClick={() => { if (confirm(`¿Eliminar prospecto "${p.nombre} ${p.apellido}"?`)) deleteProspecto(p.id); logAudit({ ...auditParams(), accion: "ELIMINAR", registro_codigo: p.codigo, registro_nombre: `${p.nombre} ${p.apellido}` }) }} style={{ ...btnStyle, padding: '4px 12px', fontSize: 11, background: '#dc2626', color: '#ffffff', border: '1px solid #ef4444' }}>Eliminar</button>}
                       </div>
                     </td>
                   </tr>
@@ -381,6 +411,6 @@ export default function ProspectosPage() {
       {tab === 'reportes' && (
         <ReportPanel title="Reporte de Prospectos" columns={reportColumns} rows={reportRows} filters={reportFilters} />
       )}
-    </div>
+</div>
   )
 }
