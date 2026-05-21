@@ -232,17 +232,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </button>
           {!collapsed && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-              {empresa?.logo_url ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={empresa.logo_url} alt={empresa.nombre || 'Logo'}
-                  style={{ maxWidth: 140, maxHeight: 56, objectFit: 'contain', marginBottom: 4 }} />
-              ) : (
-                <div style={{ background: '#ffffff', borderRadius: 8, padding: '8px 12px', marginBottom: 4 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo-novasep.png" alt="Nova Seguridad" style={{ width: 140, height: 'auto', display: 'block' }} />
-                </div>
-              )}
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, textAlign: 'center' }}>CRM Comercial</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-palomares.jpeg" alt="Palomares Consultor"
+                style={{ maxWidth: 80, maxHeight: 80, objectFit: 'contain', marginBottom: 4 }} />
+              <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 600, textAlign: 'center', margin: 0 }}>Palomares</p>
+              <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, textAlign: 'center', margin: '2px 0 0 0' }}>Consultor</p>
             </div>
           )}
         </div>
