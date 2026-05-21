@@ -74,11 +74,24 @@ export async function POST(req: NextRequest) {
 
     const data = await readData()
     data.push(nuevo)
-    await writeData(data)
 
-    // Enviar email de confirmación al prospecto
+    try {
+      await writeData(data)
+    } catch (writeErr) {
+      console.error('Error escribiendo datos:', writeErr)
+    }
+
+    // Enviar email de confirmación al prospecto (opcional)
     try {
       const smtp = await getSmtpConfig()
+      if (!smtp.user || !smtp.pass) {
+        console.warn('SMTP no configurado, saltando envío de email')
+        return NextResponse.json({
+          ok: true,
+          id: nuevo.id,
+          mensaje: `Gracias ${nombre}, hemos recibido su información exitosamente.`,
+        })
+      }
       const transporter = nodemailer.createTransport({
         host: smtp.host,
         port: smtp.port,
@@ -171,7 +184,8 @@ export async function POST(req: NextRequest) {
       id: nuevo.id,
       mensaje: `Gracias ${nombre}, hemos recibido su información exitosamente. Nuestro equipo comercial se pondrá en contacto con usted a la brevedad.`,
     })
-  } catch {
+  } catch (err) {
+    console.error('Error en prospectos-externo:', err)
     return NextResponse.json({ error: 'Error al procesar la solicitud.' }, { status: 500 })
   }
 }
