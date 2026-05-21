@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
-import { readList, writeList } from '@/shared/lib/kv-store'
+import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
 import { getSmtpConfig } from '@/shared/lib/smtp'
 
-const KV_KEY = 'nova-prospectos-externos'
+const KV_KEY = 'crm-palomares-prospectos'
 
 interface ProspectoExterno {
   id: string
@@ -21,14 +21,14 @@ interface ProspectoExterno {
   importado: boolean
 }
 
-const readData = () => readList<ProspectoExterno>(KV_KEY)
-const writeData = (data: ProspectoExterno[]) => writeList(KV_KEY, data)
+const readData = () => getFromKV<ProspectoExterno[]>(KV_KEY, [])
+const writeData = (data: ProspectoExterno[]) => setToKV(KV_KEY, data)
 
 // GET — listar prospectos externos pendientes
 export async function GET(req: NextRequest) {
   const showAll = req.nextUrl.searchParams.get('all') === '1'
   const data = await readData()
-  const result = showAll ? data : data.filter(p => !p.importado)
+  const result = showAll ? data : data.filter((p: ProspectoExterno) => !p.importado)
   return NextResponse.json({ prospectos: result, total: result.length })
 }
 
@@ -72,13 +72,14 @@ export async function POST(req: NextRequest) {
       importado: false,
     }
 
-    const data = await readData()
-    data.push(nuevo)
-
+    // Intentar guardar en KV/disco
     try {
+      const data = await readData()
+      data.push(nuevo)
       await writeData(data)
     } catch (writeErr) {
-      console.error('Error escribiendo datos:', writeErr)
+      console.error('Advertencia: No se pudo guardar en storage local:', writeErr)
+      // Continuar aunque falle el almacenamiento - el email es lo importante
     }
 
     // Enviar email de confirmación al prospecto (opcional)
