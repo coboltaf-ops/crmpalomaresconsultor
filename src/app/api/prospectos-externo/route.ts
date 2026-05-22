@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
         </div>`
 
       const result = await resend.emails.send({
-        from: 'onboarding@resend.dev',
+        from: 'noreply@resend.dev',
         to: correo.trim().toLowerCase(),
         subject: 'Solicitud de Servicio Recibida',
         html,
