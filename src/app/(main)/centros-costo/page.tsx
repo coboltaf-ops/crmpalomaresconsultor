@@ -148,7 +148,7 @@ export default function CentrosCostoPage() {
   )
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.25)', color: '#ffffff', fontSize: 14, outline: 'none', boxSizing: 'border-box', height: 44 }
-  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 14, fontWeight: 800, display: 'block', marginBottom: 6 }
+  const labelStyle: React.CSSProperties = { color: '#ffffff', fontSize: 16, fontWeight: 800, display: 'block', marginBottom: 8, background: '#1e3a8a', padding: '10px 12px', borderRadius: 6 }
   const inputUpper: React.CSSProperties = { ...inputStyle, textTransform: 'uppercase' }
   const btnStyle: React.CSSProperties = { padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 }
 
