@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import nodemailer from 'nodemailer'
-import { getSmtpConfig } from '@/shared/lib/smtp'
+import { Resend } from 'resend'
 import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
 
 const KV_KEY = 'crm-palomares-prospectos'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PATCH',
   'Access-Control-Allow-Headers': 'Content-Type',
 }
 
-interface Prospecto {
+interface ProspectoExterno {
   id: string
   nombre: string
   apellido: string
@@ -21,14 +20,22 @@ interface Prospecto {
   ciudad: string
   linea_interes: string
   descripcion_requerimiento: string
+  acepta_datos: boolean
   fecha_registro: string
   hora_registro: string
+  importado: boolean
 }
 
-const readData = () => getFromKV<Prospecto[]>(KV_KEY, [])
-const writeData = (data: Prospecto[]) => setToKV(KV_KEY, data)
+const readData = () => getFromKV<ProspectoExterno[]>(KV_KEY, [])
+const writeData = (data: ProspectoExterno[]) => setToKV(KV_KEY, data)
 
-// POST — crear nuevo prospecto y enviar email inmediatamente
+export async function GET(req: NextRequest) {
+  const showAll = req.nextUrl.searchParams.get('all') === '1'
+  const data = await readData()
+  const result = showAll ? data : data.filter((p: ProspectoExterno) => !p.importado)
+  return NextResponse.json({ prospectos: result, total: result.length }, { headers: corsHeaders })
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -38,7 +45,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos obligatorios.' }, { status: 400, headers: corsHeaders })
     }
     if (!acepta_datos) {
-      return NextResponse.json({ error: 'Debe aceptar la política de datos.' }, { status: 400, headers: corsHeaders })
+      return NextResponse.json({ error: 'Debe aceptar la política de tratamiento de datos.' }, { status: 400, headers: corsHeaders })
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -50,7 +57,7 @@ export async function POST(req: NextRequest) {
     const fechaReg = now.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
     const horaReg = now.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' })
 
-    const nuevo: Prospecto = {
+    const nuevo: ProspectoExterno = {
       id: crypto.randomUUID(),
       nombre: nombre.trim(),
       apellido: apellido.trim(),
@@ -58,79 +65,126 @@ export async function POST(req: NextRequest) {
       correo: correo.trim().toLowerCase(),
       nro_movil: (nro_movil || '').trim(),
       ciudad: (ciudad || '').trim(),
-      linea_interes: linea_interes || 'Consultoría',
+      linea_interes: (linea_interes || '').trim(),
       descripcion_requerimiento: descripcion_requerimiento.trim(),
+      acepta_datos: true,
       fecha_registro: fechaReg,
       hora_registro: horaReg,
+      importado: false,
     }
 
-    // 1. Guardar en BD
     try {
       const data = await readData()
       data.push(nuevo)
       await writeData(data)
     } catch (writeErr) {
-      console.error('Advertencia: No se pudo guardar en storage:', writeErr)
+      console.error('Error guardando prospecto:', writeErr)
     }
 
-    // 2. Enviar email INMEDIATAMENTE (no esperar importación)
+    // Enviar email de confirmación inmediatamente con Resend
     try {
-      const smtp = await getSmtpConfig()
-      const transporter = nodemailer.createTransport({
-        host: smtp.host,
-        port: smtp.port,
-        secure: smtp.secure,
-        auth: { user: smtp.user, pass: smtp.pass },
-      })
+      if (!process.env.RESEND_API_KEY) {
+        console.warn('RESEND_API_KEY no configurada')
+        return NextResponse.json({
+          ok: true,
+          id: nuevo.id,
+          mensaje: `Gracias ${nombre}, hemos recibido tu información.`,
+        }, { headers: corsHeaders })
+      }
+
+      const resend = new Resend(process.env.RESEND_API_KEY)
 
       const html = `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-          <div style="background:#1e3a8a;padding:20px;border-radius:10px 10px 0 0">
-            <h2 style="color:#fff;margin:0;font-size:18px">Solicitud Recibida ✓</h2>
-            <p style="color:rgba(255,255,255,0.7);margin:4px 0 0;font-size:13px">Gracias por contactarnos</p>
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
+          <div style="background:#0f1b3d;padding:20px;text-align:center;border-radius:12px 12px 0 0">
+            <img src="https://crmpalomaresconsultor.vercel.app/logo-jp.jpeg" alt="Palomares Consultor" style="max-width:80px;height:auto;margin-bottom:10px;border-radius:8px" />
+            <h2 style="color:#60a5fa;margin:0;font-size:18px;font-weight:bold">Palomares Consultor</h2>
           </div>
-          <div style="padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px">
-            <p style="margin-bottom:16px;font-size:14px">Hola <strong>${nombre}</strong>,</p>
-            <p style="margin-bottom:16px;font-size:14px">Hemos recibido tu solicitud exitosamente. Nuestro equipo de consultoría se pondrá en contacto contigo para discutir cómo podemos ayudarte a optimizar procesos y transformar tu empresa digitalmente.</p>
-            <table style="width:100%;margin-bottom:16px;border-collapse:collapse">
-              <tr><td style="color:#6b7280;padding:8px 0;font-size:13px;border-bottom:1px solid #f3f4f6"><strong>Nombre:</strong></td><td style="font-weight:600;padding:8px 0;font-size:13px;border-bottom:1px solid #f3f4f6">${nombre} ${apellido}</td></tr>
-              <tr><td style="color:#6b7280;padding:8px 0;font-size:13px;border-bottom:1px solid #f3f4f6"><strong>Empresa:</strong></td><td style="font-weight:600;padding:8px 0;font-size:13px;border-bottom:1px solid #f3f4f6">${empresa || '—'}</td></tr>
-              <tr><td style="color:#6b7280;padding:8px 0;font-size:13px;border-bottom:1px solid #f3f4f6"><strong>Teléfono:</strong></td><td style="font-weight:600;padding:8px 0;font-size:13px;border-bottom:1px solid #f3f4f6">${nro_movil || '—'}</td></tr>
-            </table>
-            <div style="background:#f8fafc;border-radius:8px;padding:16px;margin-bottom:16px;border-left:4px solid #1e3a8a">
-              <p style="color:#6b7280;font-size:11px;margin-bottom:4px;font-weight:600;text-transform:uppercase">Tu Requerimiento</p>
-              <p style="font-size:13px;line-height:1.6;margin:0;color:#1f2937">${descripcion_requerimiento}</p>
+          <div style="padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
+            <p style="color:#1e293b;font-size:16px;line-height:1.7;margin:0 0 4px 0">
+              Apreciado(a) <strong>${nombre.trim()} ${apellido.trim()}</strong>,
+            </p>
+            <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px 0">
+              <strong>${(empresa || '').trim()}</strong>
+            </p>
+            <p style="color:#1e293b;font-size:14px;line-height:1.8;margin:0 0 20px 0">
+              Hemos recibido su solicitud de requerimiento. En breves momentos lo estaremos contactando para conocer en detalle sus requerimientos.
+            </p>
+            <div style="background:#f0f9ff;border-left:4px solid #0f1b3d;padding:14px;margin:20px 0;border-radius:6px">
+              <p style="color:#1e293b;font-size:12px;font-weight:600;margin:0 0 8px 0">Detalles de su solicitud:</p>
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <tr style="border-bottom:1px solid #d1d5db">
+                  <td style="color:#64748b;padding:6px 0;width:120px">Fecha recepción:</td>
+                  <td style="color:#1e293b;font-weight:600">${fechaReg}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #d1d5db">
+                  <td style="color:#64748b;padding:6px 0">Hora recepción:</td>
+                  <td style="color:#1e293b;font-weight:600">${horaReg}</td>
+                </tr>
+                <tr>
+                  <td style="color:#64748b;padding:6px 0">Servicio de interés:</td>
+                  <td style="color:#1e293b;font-weight:600">${(linea_interes || '—').trim()}</td>
+                </tr>
+              </table>
             </div>
-            <p style="font-size:12px;color:#9ca3af;margin:0">Tiempo de respuesta estimado: 24 horas. Si tienes preguntas, no dudes en responder este correo.</p>
+            <p style="color:#1e293b;font-size:14px;line-height:1.7;margin:0 0 24px 0">
+              Agradecemos su confianza.
+            </p>
+            <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:20px">
+              <p style="color:#1e293b;font-size:14px;font-weight:600;margin:0 0 4px 0">
+                Ing. Jose E. Palomares
+              </p>
+              <p style="color:#64748b;font-size:13px;margin:0">
+                Director - Palomares Consultor
+              </p>
+            </div>
           </div>
-          <p style="text-align:center;color:#9ca3af;font-size:11px;margin-top:16px">Jose Enrique Palomares Tafur — Consultor en Sistemas y Transformación Digital</p>
+          <div style="background:#f3f4f6;padding:16px;text-align:center;border-radius:0 0 12px 12px;font-size:11px;color:#6b7280">
+            <p style="margin:0">© 2026 Palomares Consultor</p>
+          </div>
         </div>`
 
-      await transporter.sendMail({
-        from: process.env.SMTP_USER,
-        to: correo,
-        subject: `Solicitud Recibida — ${nombre} ${apellido}`,
+      const result = await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: correo.trim().toLowerCase(),
+        subject: 'Solicitud de Servicio Recibida',
         html,
       })
 
-      console.log(`✓ Email enviado a ${correo}`)
+      console.log('Email enviado:', result)
     } catch (emailErr) {
-      console.warn('⚠ Fallo al enviar email pero prospecto guardado:', emailErr)
-      // No retornar error - el prospecto se guardó exitosamente
+      console.error('Error enviando email:', emailErr)
     }
 
     return NextResponse.json({
       ok: true,
       id: nuevo.id,
-      mensaje: `Gracias ${nombre}, hemos recibido tu información exitosamente. Te hemos enviado un email de confirmación. Nuestro equipo se pondrá en contacto contigo a la brevedad.`,
+      mensaje: `Gracias ${nombre}, hemos recibido tu información exitosamente. Nuestro equipo se pondrá en contacto pronto.`,
     }, { headers: corsHeaders })
   } catch (err) {
-    console.error('Error en prospectos-externo:', err)
-    return NextResponse.json({ error: 'Error al procesar la solicitud.' }, { status: 500, headers: corsHeaders })
+    console.error('Error:', err)
+    return NextResponse.json({ error: 'Error al procesar.' }, { status: 500, headers: corsHeaders })
   }
 }
 
-// OPTIONS — manejar preflight requests de CORS
+export async function PATCH(req: NextRequest) {
+  try {
+    const { ids } = await req.json() as { ids: string[] }
+    if (!ids || !Array.isArray(ids)) {
+      return NextResponse.json({ error: 'Se requiere un array de IDs.' }, { status: 400, headers: corsHeaders })
+    }
+    const data = await readData()
+    let count = 0
+    for (const item of data) {
+      if (ids.includes(item.id)) { item.importado = true; count++ }
+    }
+    await writeData(data)
+    return NextResponse.json({ ok: true, importados: count }, { headers: corsHeaders })
+  } catch {
+    return NextResponse.json({ error: 'Error al procesar.' }, { status: 500, headers: corsHeaders })
+  }
+}
+
 export function OPTIONS() {
   return new NextResponse(null, { headers: corsHeaders })
 }
