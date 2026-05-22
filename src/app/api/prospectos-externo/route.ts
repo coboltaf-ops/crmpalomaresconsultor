@@ -108,37 +108,67 @@ export async function POST(req: NextRequest) {
       })
 
       const html = `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-          <div style="background:#1e3a8a;padding:24px 28px;border-radius:12px 12px 0 0">
-            <h2 style="color:#ffffff;margin:0;font-size:20px">Solicitud de Servicio Recibida</h2>
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
+          <!-- Header con Logo -->
+          <div style="background:#0f1b3d;padding:20px;text-align:center;border-radius:12px 12px 0 0">
+            <img src="https://crmpalomaresconsultor.vercel.app/logo-jp.jpeg" alt="Palomares Consultor" style="max-width:80px;height:auto;margin-bottom:10px;border-radius:8px" />
+            <h2 style="color:#60a5fa;margin:0;font-size:18px;font-weight:bold">Palomares Consultor</h2>
           </div>
-          <div style="padding:28px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;background:#ffffff">
-            <p style="color:#1e293b;font-size:15px;line-height:1.7;margin:0 0 20px 0">
+
+          <!-- Contenido principal -->
+          <div style="padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
+            <!-- Saludo personalizado -->
+            <p style="color:#1e293b;font-size:16px;line-height:1.7;margin:0 0 4px 0">
               Apreciado(a) <strong>${nombre.trim()} ${apellido.trim()}</strong>,
             </p>
-            <p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 20px 0">
-              Usted ha sido recibido en nuestra Empresa con una Solicitud de Servicio.
-              En momentos uno de nuestros comerciales lo va a contactar.
+            <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px 0">
+              <strong>${(empresa || '').trim()}</strong>
             </p>
-            <div style="background:#f1f5f9;border-radius:10px;padding:16px 20px;margin-bottom:20px">
-              <table style="width:100%;border-collapse:collapse">
-                <tr><td style="color:#64748b;padding:6px 0;font-size:13px;width:140px">Nombre:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${nombre.trim()} ${apellido.trim()}</td></tr>
-                <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Empresa:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${(empresa || '—').trim()}</td></tr>
-                <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Ciudad:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${(ciudad || '—').trim()}</td></tr>
-                <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Servicio interés:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${(linea_interes || '—').trim()}</td></tr>
-                <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Fecha recepción:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${fechaEmail}</td></tr>
-                <tr><td style="color:#64748b;padding:6px 0;font-size:13px">Hora recepción:</td><td style="color:#1e293b;font-weight:600;font-size:13px">${horaReg}</td></tr>
+
+            <!-- Mensaje principal -->
+            <p style="color:#1e293b;font-size:14px;line-height:1.8;margin:0 0 20px 0">
+              Hemos recibido su solicitud de requerimiento. En breves momentos lo estaremos contactando para conocer en detalle sus requerimientos.
+            </p>
+
+            <!-- Información de recepción -->
+            <div style="background:#f0f9ff;border-left:4px solid #0f1b3d;padding:14px;margin:20px 0;border-radius:6px">
+              <p style="color:#1e293b;font-size:12px;font-weight:600;margin:0 0 8px 0">Detalles de su solicitud:</p>
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <tr style="border-bottom:1px solid #d1d5db">
+                  <td style="color:#64748b;padding:6px 0;width:120px">Fecha recepción:</td>
+                  <td style="color:#1e293b;font-weight:600">${fechaEmail}</td>
+                </tr>
+                <tr style="border-bottom:1px solid #d1d5db">
+                  <td style="color:#64748b;padding:6px 0">Hora recepción:</td>
+                  <td style="color:#1e293b;font-weight:600">${horaReg}</td>
+                </tr>
+                <tr>
+                  <td style="color:#64748b;padding:6px 0">Servicio de interés:</td>
+                  <td style="color:#1e293b;font-weight:600">${(linea_interes || '—').trim()}</td>
+                </tr>
               </table>
             </div>
-            <div style="background:#f8fafc;border-radius:10px;padding:16px 20px;margin-bottom:20px;border:1px solid #e2e8f0">
-              <p style="color:#64748b;font-size:12px;font-weight:600;margin:0 0 8px 0">Descripción del Requerimiento:</p>
-              <p style="color:#1e293b;font-size:13px;line-height:1.6;margin:0">${descripcion_requerimiento.trim()}</p>
-            </div>
-            <p style="color:#475569;font-size:13px;line-height:1.6;margin:0">
-              Agradecemos su confianza. Si tiene alguna duda, no dude en comunicarse con nosotros.
+
+            <!-- Cierre -->
+            <p style="color:#1e293b;font-size:14px;line-height:1.7;margin:0 0 24px 0">
+              Agradecemos su confianza.
             </p>
+
+            <!-- Firma -->
+            <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:20px">
+              <p style="color:#1e293b;font-size:14px;font-weight:600;margin:0 0 4px 0">
+                Ing. Jose E. Palomares
+              </p>
+              <p style="color:#64748b;font-size:13px;margin:0">
+                Director - Palomares Consultor
+              </p>
+            </div>
           </div>
-          <p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:16px">Nova Seguridad</p>
+
+          <!-- Footer -->
+          <div style="background:#f3f4f6;padding:16px;text-align:center;border-radius:0 0 12px 12px;font-size:11px;color:#6b7280">
+            <p style="margin:0">© 2026 Palomares Consultor | Consultoría Digital y Transformación Empresarial</p>
+          </div>
         </div>`
 
       await transporter.sendMail({
