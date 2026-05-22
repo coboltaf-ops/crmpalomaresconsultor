@@ -13,7 +13,6 @@ import DocumentosPanel from '@/shared/components/documentos-panel'
 import { useAsistenteStore } from '@/shared/stores/asistente-store'
 import { Seguimiento } from '@/shared/types/seguimiento'
 import WhatsAppButton from '@/shared/components/whatsapp-button'
-import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 
 
 interface ProspectoExterno {
@@ -41,29 +40,13 @@ export default function ProspectosPage() {
   const [search, setSearch] = useState('')
   const { pendingSearch, pendingAction, clearPending } = useAsistenteStore()
 
-  // ── Prospectos externos ──
-  const [externas, setExternas] = useState<ProspectoExterno[]>([])
-  const [showExternas, setShowExternas] = useState(false)
 
-  const loadExternas = async () => {
-    try {
-      const res = await fetch('/api/prospectos-externo')
-      const data = await res.json()
-      const lista: ProspectoExterno[] = data.prospectos || []
-      setExternas(lista)
-      if (lista.length > 0) setShowExternas(true)
-    } catch (err) {
-      console.error('[prospectos] Error cargando externos:', err)
-    }
-  }
 
   useEffect(() => {
     if (pendingSearch) setSearch(pendingSearch)
     if (pendingAction === 'nuevo') { setSelected(emptyProspecto(nextConsecutivo('PRS-', prospectos.map(p => p.codigo)).codigo)); setIsForm(true) }
     if (pendingSearch || pendingAction) clearPending()
-    loadExternas()
-    const intervalId = setInterval(loadExternas, 15000)
-    return () => clearInterval(intervalId)
+    return () => {}
   }, [])
 
   const refOptions = (table: string) => (refData[table as keyof typeof refData] || []).filter(r => r.situacion).map(r => r.descripcion)
@@ -272,30 +255,13 @@ export default function ProspectosPage() {
   return (
     <div>
 
-      {/* Backup / Restore — banner superior, siempre visible */}
-      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
-        <BackupRestoreButtons
-          modulo="prospectos"
-          label="Prospectos"
-          registros={prospectos}
-          onClear={() => useProspectosStore.setState({ prospectos: [] })}
-          onRestore={(rs) => useProspectosStore.setState({ prospectos: rs })}
-        />
-      </div>
+      
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Prospectos</h1>
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Gestión de prospectos comerciales</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          {tab === 'registros' && externas.length > 0 && (
-            <button onClick={() => setShowExternas(!showExternas)}
-              style={{ ...btnStyle, background: '#ea580c', color: '#ffffff', border: '1px solid #f97316', position: 'relative' }}>
-              Prospectos Web
-              <span style={{ position: 'absolute', top: -8, right: -8, background: '#dc2626', color: '#fff', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{externas.length}</span>
-            </button>
-          )}
           {permisos.editar && tab === 'registros' && (
             <button onClick={() => { setSelected(emptyProspecto(nextConsecutivo('PRS-', prospectos.map(p => p.codigo)).codigo)); setIsForm(true) }} style={{ ...btnStyle, background: '#0f1b3d', color: '#ffffff' }}>+ Nuevo Prospecto</button>
           )}
