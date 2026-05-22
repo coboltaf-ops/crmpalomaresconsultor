@@ -5,6 +5,13 @@ import { getSmtpConfig } from '@/shared/lib/smtp'
 
 const KV_KEY = 'crm-palomares-prospectos'
 
+// CORS headers para permitir solicitudes desde landing
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PATCH',
+  'Access-Control-Allow-Headers': 'Content-Type',
+}
+
 interface ProspectoExterno {
   id: string
   nombre: string
@@ -29,7 +36,7 @@ export async function GET(req: NextRequest) {
   const showAll = req.nextUrl.searchParams.get('all') === '1'
   const data = await readData()
   const result = showAll ? data : data.filter((p: ProspectoExterno) => !p.importado)
-  return NextResponse.json({ prospectos: result, total: result.length })
+  return NextResponse.json({ prospectos: result, total: result.length }, { headers: corsHeaders })
 }
 
 // POST — crear nuevo prospecto desde formulario público
@@ -39,16 +46,16 @@ export async function POST(req: NextRequest) {
     const { nombre, apellido, empresa, correo, nro_movil, ciudad, linea_interes, descripcion_requerimiento, acepta_datos } = body
 
     if (!nombre || !apellido || !correo || !descripcion_requerimiento) {
-      return NextResponse.json({ error: 'Faltan campos obligatorios: nombre, apellido, correo y descripción del requerimiento.' }, { status: 400 })
+      return NextResponse.json({ error: 'Faltan campos obligatorios: nombre, apellido, correo y descripción del requerimiento.' }, { status: 400, headers: corsHeaders })
     }
     if (!acepta_datos) {
-      return NextResponse.json({ error: 'Debe aceptar la política de tratamiento de datos personales.' }, { status: 400 })
+      return NextResponse.json({ error: 'Debe aceptar la política de tratamiento de datos personales.' }, { status: 400, headers: corsHeaders })
     }
 
     // Validar formato email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(correo)) {
-      return NextResponse.json({ error: 'El formato del correo electrónico no es válido.' }, { status: 400 })
+      return NextResponse.json({ error: 'El formato del correo electrónico no es válido.' }, { status: 400, headers: corsHeaders })
     }
 
     const now = new Date()
@@ -91,7 +98,7 @@ export async function POST(req: NextRequest) {
           ok: true,
           id: nuevo.id,
           mensaje: `Gracias ${nombre}, hemos recibido su información exitosamente.`,
-        })
+        }, { headers: corsHeaders })
       }
       const transporter = nodemailer.createTransport({
         host: smtp.host,
@@ -184,10 +191,10 @@ export async function POST(req: NextRequest) {
       ok: true,
       id: nuevo.id,
       mensaje: `Gracias ${nombre}, hemos recibido su información exitosamente. Nuestro equipo comercial se pondrá en contacto con usted a la brevedad.`,
-    })
+    }, { headers: corsHeaders })
   } catch (err) {
     console.error('Error en prospectos-externo:', err)
-    return NextResponse.json({ error: 'Error al procesar la solicitud.' }, { status: 500 })
+    return NextResponse.json({ error: 'Error al procesar la solicitud.' }, { status: 500, headers: corsHeaders })
   }
 }
 
@@ -196,7 +203,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const { ids } = await req.json() as { ids: string[] }
     if (!ids || !Array.isArray(ids)) {
-      return NextResponse.json({ error: 'Se requiere un array de IDs.' }, { status: 400 })
+      return NextResponse.json({ error: 'Se requiere un array de IDs.' }, { status: 400, headers: corsHeaders })
     }
     const data = await readData()
     let count = 0
@@ -204,8 +211,13 @@ export async function PATCH(req: NextRequest) {
       if (ids.includes(item.id)) { item.importado = true; count++ }
     }
     await writeData(data)
-    return NextResponse.json({ ok: true, importados: count })
+    return NextResponse.json({ ok: true, importados: count }, { headers: corsHeaders })
   } catch {
-    return NextResponse.json({ error: 'Error al procesar.' }, { status: 500 })
+    return NextResponse.json({ error: 'Error al procesar.' }, { status: 500, headers: corsHeaders })
   }
+}
+
+// OPTIONS — manejar preflight requests de CORS
+export function OPTIONS() {
+  return new NextResponse(null, { headers: corsHeaders })
 }
