@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
 
     // Enviar email de confirmación al prospecto
     try {
+      console.log('Intentando enviar email... API Key exists:', !!process.env.RESEND_API_KEY)
       const resend = new Resend(process.env.RESEND_API_KEY)
 
       const html = `
@@ -156,12 +157,13 @@ export async function POST(req: NextRequest) {
           </div>
         </div>`
 
-      await resend.emails.send({
+      const emailResult = await resend.emails.send({
         from: 'noreply@resend.dev',
         to: correo.trim().toLowerCase(),
         subject: 'Solicitud de Servicio Recibida',
         html,
       })
+      console.log('Email enviado resultado:', emailResult)
 
       // Registrar correo en log
       try {
