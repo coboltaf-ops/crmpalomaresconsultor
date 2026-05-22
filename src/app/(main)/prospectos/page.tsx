@@ -66,41 +66,6 @@ export default function ProspectosPage() {
     return () => clearInterval(intervalId)
   }, [])
 
-  const importarProspecto = async (ext: ProspectoExterno) => {
-    const codigo = nextConsecutivo('PRS-', prospectos.map(p => p.codigo)).codigo
-    addProspecto({
-      id: crypto.randomUUID(), codigo, nombre: ext.nombre, apellido: ext.apellido,
-      empresa: ext.empresa, correo: ext.correo, nro_movil: ext.nro_movil,
-      origen_prospecto: 'Formulario Web', detalle_requerimiento: ext.descripcion_requerimiento,
-      actividad: '', ciudad: '', pais: 'Colombia', situacion: 'Sin Contactar',
-      fecha_registro: ext.fecha_registro || todayColombia(), seguimientos: [{
-        id: crypto.randomUUID(), fecha: todayColombia(), detalle: `Prospecto importado desde formulario web. Registrado el ${ext.fecha_registro} a las ${ext.hora_registro}.`,
-        persona_actividad: `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`.trim(), situacion: 'Sin Contactar', usuario: currentUser?.nombre || 'Sistema',
-      }],
-    })
-    try { await fetch('/api/prospectos-externo', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [ext.id] }) }) } catch { /* silent */ }
-    setExternas(prev => prev.filter(e => e.id !== ext.id))
-  }
-
-  const importarTodas = async () => {
-    for (const ext of externas) {
-      const codigo = nextConsecutivo('PRS-', [...prospectos.map(p => p.codigo)]).codigo
-      addProspecto({
-        id: crypto.randomUUID(), codigo, nombre: ext.nombre, apellido: ext.apellido,
-        empresa: ext.empresa, correo: ext.correo, nro_movil: ext.nro_movil,
-        origen_prospecto: 'Formulario Web', detalle_requerimiento: ext.descripcion_requerimiento,
-        actividad: '', ciudad: '', pais: 'Colombia', situacion: 'Sin Contactar',
-        fecha_registro: ext.fecha_registro || todayColombia(), seguimientos: [{
-          id: crypto.randomUUID(), fecha: todayColombia(), detalle: `Prospecto importado desde formulario web. Registrado el ${ext.fecha_registro} a las ${ext.hora_registro}.`,
-          persona_actividad: `${currentUser?.nombre || ''} ${currentUser?.apellido || ''}`.trim(), situacion: 'Sin Contactar', usuario: currentUser?.nombre || 'Sistema',
-        }],
-      })
-    }
-    try { await fetch('/api/prospectos-externo', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: externas.map(e => e.id) }) }) } catch { /* silent */ }
-    setExternas([])
-    setShowExternas(false)
-  }
-
   const refOptions = (table: string) => (refData[table as keyof typeof refData] || []).filter(r => r.situacion).map(r => r.descripcion)
 
   const filtered = prospectos.filter(p => {
@@ -344,32 +309,6 @@ export default function ProspectosPage() {
 
       {tab === 'registros' && (
         <>
-          {/* Panel prospectos externos */}
-          {showExternas && externas.length > 0 && (
-            <div style={{ background: 'rgba(234,88,12,0.1)', border: '1px solid rgba(234,88,12,0.3)', borderRadius: 12, padding: 20, marginBottom: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ color: '#f97316', fontSize: 15, fontWeight: 700, margin: 0 }}>Prospectos desde Formulario Web ({externas.length})</h3>
-                <button onClick={importarTodas} style={{ ...btnStyle, background: '#15803d', color: '#ffffff', border: '1px solid #16a34a', fontSize: 12 }}>Importar Todas</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {externas.map(ext => (
-                  <div key={ext.id} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 10, padding: '12px 16px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ color: '#ffffff', fontSize: 14, fontWeight: 600, margin: 0 }}>{ext.nombre} {ext.apellido}</p>
-                      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, margin: '2px 0' }}>{ext.empresa || 'Sin empresa'} | {ext.correo} | {ext.nro_movil || 'Sin móvil'}</p>
-                      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, margin: 0 }}>{ext.descripcion_requerimiento?.substring(0, 120)}{(ext.descripcion_requerimiento?.length || 0) > 120 ? '...' : ''}</p>
-                      <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, margin: '4px 0 0' }}>{ext.fecha_registro} {ext.hora_registro}</p>
-                    </div>
-                    <button onClick={() => importarProspecto(ext)} style={{ ...btnStyle, background: '#1e3a8a', color: '#ffffff', border: '1px solid #2563eb', fontSize: 11, marginLeft: 12 }}>Importar al CRM</button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, empresa o código..." style={{ ...inputStyle, maxWidth: 400 }} />
-          </div>
 
           <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
