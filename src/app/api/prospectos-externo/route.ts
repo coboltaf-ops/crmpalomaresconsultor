@@ -115,71 +115,7 @@ export async function PATCH(req: NextRequest) {
         item.importado = true
         count++
 
-        // Email temporalmente desactivado - será configurado después con servicio alternativo
-        // TODO: Configurar con SendGrid o similar
-        try {
-          console.log(`Saltando email para ${item.correo} - será enviado después`)
-          const html = `
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
-              <div style="background:#0f1b3d;padding:20px;text-align:center;border-radius:12px 12px 0 0">
-                <img src="https://crmpalomaresconsultor.vercel.app/logo-jp.jpeg" alt="Palomares Consultor" style="max-width:80px;height:auto;margin-bottom:10px;border-radius:8px" />
-                <h2 style="color:#60a5fa;margin:0;font-size:18px;font-weight:bold">Palomares Consultor</h2>
-              </div>
-              <div style="padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
-                <p style="color:#1e293b;font-size:16px;line-height:1.7;margin:0 0 4px 0">
-                  Apreciado(a) <strong>${item.nombre.trim()} ${item.apellido.trim()}</strong>,
-                </p>
-                <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px 0">
-                  <strong>${(item.empresa || '').trim()}</strong>
-                </p>
-                <p style="color:#1e293b;font-size:14px;line-height:1.8;margin:0 0 20px 0">
-                  Hemos recibido su solicitud de requerimiento. En breves momentos lo estaremos contactando para conocer en detalle sus requerimientos.
-                </p>
-                <div style="background:#f0f9ff;border-left:4px solid #0f1b3d;padding:14px;margin:20px 0;border-radius:6px">
-                  <p style="color:#1e293b;font-size:12px;font-weight:600;margin:0 0 8px 0">Detalles de su solicitud:</p>
-                  <table style="width:100%;border-collapse:collapse;font-size:13px">
-                    <tr style="border-bottom:1px solid #d1d5db">
-                      <td style="color:#64748b;padding:6px 0;width:120px">Fecha recepción:</td>
-                      <td style="color:#1e293b;font-weight:600">${item.fecha_registro}</td>
-                    </tr>
-                    <tr style="border-bottom:1px solid #d1d5db">
-                      <td style="color:#64748b;padding:6px 0">Hora recepción:</td>
-                      <td style="color:#1e293b;font-weight:600">${item.hora_registro}</td>
-                    </tr>
-                    <tr>
-                      <td style="color:#64748b;padding:6px 0">Servicio de interés:</td>
-                      <td style="color:#1e293b;font-weight:600">${(item.linea_interes || '—').trim()}</td>
-                    </tr>
-                  </table>
-                </div>
-                <p style="color:#1e293b;font-size:14px;line-height:1.7;margin:0 0 24px 0">
-                  Agradecemos su confianza.
-                </p>
-                <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:20px">
-                  <p style="color:#1e293b;font-size:14px;font-weight:600;margin:0 0 4px 0">
-                    Ing. Jose E. Palomares
-                  </p>
-                  <p style="color:#64748b;font-size:13px;margin:0">
-                    Director - Palomares Consultor
-                  </p>
-                </div>
-              </div>
-              <div style="background:#f3f4f6;padding:16px;text-align:center;border-radius:0 0 12px 12px;font-size:11px;color:#6b7280">
-                <p style="margin:0">© 2026 Palomares Consultor | Consultoría Digital y Transformación Empresarial</p>
-              </div>
-            </div>`
-
-          // Email temporalmente desactivado para la demo
-          // await transporter.sendMail({
-          //   from: process.env.SMTP_USER || 'noreply@palomares.com',
-          //   to: item.correo.trim().toLowerCase(),
-          //   subject: 'Solicitud de Servicio Recibida',
-          //   html,
-          // })
-          console.log(`Email será enviado a ${item.correo} después de la demo`)
-        } catch (emailErr) {
-          console.error(`Error enviando email a ${item.correo}:`, emailErr)
-        }
+        // Email será configurado después con servicio adecuado
       }
     }
     await writeData(data)
