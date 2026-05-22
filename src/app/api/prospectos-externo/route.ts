@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
         </div>`
 
       await transporter.sendMail({
-        from: 'coboltaf@gmail.com',
+        from: process.env.SMTP_USER || 'noreply@palomares.com',
         to: correo.trim().toLowerCase(),
         subject: 'Solicitud de Servicio Recibida',
         html,
