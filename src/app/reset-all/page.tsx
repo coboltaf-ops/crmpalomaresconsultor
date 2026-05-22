@@ -6,50 +6,51 @@ export default function ResetAllPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // Limpiar todos los stores de Zustand
-    const keys = [
-      'clientes-store',
-      'contactos-store',
-      'cotizaciones-store',
-      'oportunidades-store',
-      'pqrs-store',
-      'productos-store',
-      'referencias-store',
-      'usuarios-store',
-      'modulos-store',
-      'empresa-store',
-      'tareas-store',
-      'prospectos-store',
-      'lineas-servicio-store',
-      'centros-costo-store',
-      'contratos-store',
-      'personal-store',
-    ]
+    const doHardReset = async () => {
+      // Limpiar TODOS los stores de Zustand y localStorage
+      console.log('🔨 HARD RESET iniciado...')
 
-    console.log('🧹 Borrando datos...')
-    keys.forEach(key => {
-      localStorage.removeItem(key)
-      console.log(`✓ Borrado: ${key}`)
-    })
+      // Obtener TODAS las claves del localStorage
+      const allKeys = Object.keys(localStorage)
+      console.log(`🔑 Encontradas ${allKeys.length} claves en localStorage`)
 
-    // Desactivar el auto-seed para evitar que se carguen datos automáticamente
-    localStorage.setItem('crm-no-autoseed', '1')
-    console.log('✓ Auto-seed desactivado')
+      allKeys.forEach(key => {
+        localStorage.removeItem(key)
+        console.log(`✓ Borrado: ${key}`)
+      })
 
-    // También borrar cache de asistente
-    sessionStorage.clear()
-    console.log('✓ Session storage limpiado')
+      // Limpiar sessionStorage completamente
+      sessionStorage.clear()
+      console.log('✓ Session storage limpiado')
 
-    alert('✅ Todos los datos han sido borrados. El CRM está vacío y listo para tu uso.')
-    router.push('/login')
+      // Establecer el flag de no-autoseed
+      localStorage.setItem('crm-no-autoseed', '1')
+      console.log('✓ Auto-seed desactivado')
+
+      // Llamar al hard-reset del servidor
+      try {
+        const res = await fetch('/api/hard-reset', { method: 'POST' })
+        const data = await res.json()
+        console.log('✓ Server hard-reset completado:', data)
+      } catch (err) {
+        console.error('⚠️ Error en server hard-reset:', err)
+      }
+
+      // Esperar un poco y redirigir
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      alert('✅ LIMPIEZA COMPLETADA - El CRM está completamente vacío y listo para usar.')
+      router.push('/login')
+    }
+
+    doHardReset()
   }, [router])
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1e3a8a' }}>
       <div style={{ textAlign: 'center', color: '#ffffff' }}>
-        <h1 style={{ fontSize: 32, marginBottom: 16 }}>🧹 Limpiando datos...</h1>
-        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>Espera un momento, estamos borrando todos los datos de demostración.</p>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 24 }}>Serás redirigido al login en segundos...</p>
+        <h1 style={{ fontSize: 32, marginBottom: 16 }}>🔨 HARD RESET en progreso...</h1>
+        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>Borrando TODOS los datos del CRM (navegador y servidor)...</p>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 24 }}>Serás redirigido al login cuando termine...</p>
       </div>
     </div>
   )
