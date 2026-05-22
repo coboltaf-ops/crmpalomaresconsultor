@@ -32,6 +32,10 @@ export default function ResetAllPage() {
       console.log(`✓ Borrado: ${key}`)
     })
 
+    // Desactivar el auto-seed para evitar que se carguen datos automáticamente
+    localStorage.setItem('crm-no-autoseed', '1')
+    console.log('✓ Auto-seed desactivado')
+
     // También borrar cache de asistente
     sessionStorage.clear()
     console.log('✓ Session storage limpiado')
