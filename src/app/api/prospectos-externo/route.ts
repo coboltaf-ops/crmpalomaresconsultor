@@ -109,6 +109,13 @@ export async function PATCH(req: NextRequest) {
     }
     const data = await readData()
     let count = 0
+    console.log('PATCH: Iniciando importación de prospectos...')
+    console.log('SMTP Config check:', {
+      host: !!process.env.SMTP_HOST,
+      port: !!process.env.SMTP_PORT,
+      user: !!process.env.SMTP_USER,
+      pass: !!process.env.SMTP_PASS,
+    })
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -126,6 +133,7 @@ export async function PATCH(req: NextRequest) {
 
         // Enviar email de confirmación
         try {
+          console.log(`Preparando email para ${item.correo}...`)
           const html = `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
               <div style="background:#0f1b3d;padding:20px;text-align:center;border-radius:12px 12px 0 0">
