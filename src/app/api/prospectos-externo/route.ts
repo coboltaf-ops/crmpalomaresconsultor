@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import nodemailer from 'nodemailer'
 import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
 
 const KV_KEY = 'crm-palomares-prospectos'
@@ -109,32 +108,17 @@ export async function PATCH(req: NextRequest) {
     }
     const data = await readData()
     let count = 0
-    console.log('PATCH: Iniciando importación de prospectos...')
-    console.log('SMTP Config check:', {
-      host: !!process.env.SMTP_HOST,
-      port: !!process.env.SMTP_PORT,
-      user: !!process.env.SMTP_USER,
-      pass: !!process.env.SMTP_PASS,
-    })
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      requireTLS: true,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    } as any)
+    // Email temporalmente desactivado para la demo
 
     for (const item of data) {
       if (ids.includes(item.id)) {
         item.importado = true
         count++
 
-        // Enviar email de confirmación
+        // Email temporalmente desactivado - será configurado después con servicio alternativo
+        // TODO: Configurar con SendGrid o similar
         try {
-          console.log(`Preparando email para ${item.correo}...`)
+          console.log(`Saltando email para ${item.correo} - será enviado después`)
           const html = `
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
               <div style="background:#0f1b3d;padding:20px;text-align:center;border-radius:12px 12px 0 0">
@@ -185,13 +169,14 @@ export async function PATCH(req: NextRequest) {
               </div>
             </div>`
 
-          await transporter.sendMail({
-            from: process.env.SMTP_USER || 'noreply@palomares.com',
-            to: item.correo.trim().toLowerCase(),
-            subject: 'Solicitud de Servicio Recibida',
-            html,
-          })
-          console.log(`Email enviado a ${item.correo}`)
+          // Email temporalmente desactivado para la demo
+          // await transporter.sendMail({
+          //   from: process.env.SMTP_USER || 'noreply@palomares.com',
+          //   to: item.correo.trim().toLowerCase(),
+          //   subject: 'Solicitud de Servicio Recibida',
+          //   html,
+          // })
+          console.log(`Email será enviado a ${item.correo} después de la demo`)
         } catch (emailErr) {
           console.error(`Error enviando email a ${item.correo}:`, emailErr)
         }
