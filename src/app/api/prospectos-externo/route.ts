@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
 
 const KV_KEY = 'crm-palomares-prospectos'
@@ -90,8 +90,16 @@ export async function POST(req: NextRequest) {
 
     // Enviar email de confirmación al prospecto
     try {
-      console.log('Intentando enviar email... API Key exists:', !!process.env.RESEND_API_KEY)
-      const resend = new Resend(process.env.RESEND_API_KEY)
+      console.log('Intentando enviar email...')
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_PORT === '465',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      })
 
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
@@ -157,13 +165,13 @@ export async function POST(req: NextRequest) {
           </div>
         </div>`
 
-      const emailResult = await resend.emails.send({
-        from: 'noreply@resend.dev',
+      await transporter.sendMail({
+        from: process.env.SMTP_USER,
         to: correo.trim().toLowerCase(),
         subject: 'Solicitud de Servicio Recibida',
         html,
       })
-      console.log('Email enviado resultado:', emailResult)
+      console.log('Email enviado exitosamente')
 
       // Registrar correo en log
       try {
@@ -172,7 +180,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            de: 'noreply@resend.dev',
+            de: process.env.SMTP_USER || 'noreply@example.com',
             para: correo.trim().toLowerCase(),
             asunto: 'Solicitud de Servicio Recibida',
             modulo: 'prospectos',
@@ -196,7 +204,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            de: 'noreply@resend.dev',
+            de: process.env.SMTP_USER || 'noreply@example.com',
             para: correo.trim().toLowerCase(),
             asunto: 'Solicitud de Servicio Recibida',
             modulo: 'prospectos',
