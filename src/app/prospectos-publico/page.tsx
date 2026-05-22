@@ -19,12 +19,12 @@ const initial: FormData = {
 }
 
 const lineasInteres = [
-  'Vigilancia Física',
-  'Escoltas',
-  'CCTV / Cámaras',
-  'Rastreo Satelital GPS',
-  'Medios Tecnológicos / Alarmas',
-  'Caninos',
+  'Consultoría Gerencial',
+  'Implementación de ERP',
+  'Sistemas CRM',
+  'Transformación Digital',
+  'Ciberseguridad',
+  'Capacitación Empresarial',
   'Otro',
 ]
 
@@ -34,7 +34,7 @@ export default function ProspectosPublicoPage() {
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; mensaje: string } | null>(null)
   const [salir, setSalir] = useState(false)
-  const [empresa, setEmpresa] = useState<{ nombre: string; logo_url: string }>({ nombre: 'Nova Seguridad', logo_url: '' })
+  const [empresa, setEmpresa] = useState<{ nombre: string; logo_url: string }>({ nombre: 'Palomares Consultor', logo_url: '' })
 
   useEffect(() => {
     fetch('/api/empresa-publica').then(r => r.json()).then(setEmpresa).catch(() => {})
@@ -253,7 +253,7 @@ export default function ProspectosPublicoPage() {
               <input type="checkbox" checked={form.acepta_datos} onChange={e => set('acepta_datos', e.target.checked)}
                 style={{ marginTop: 3, accentColor: '#3b82f6', cursor: 'pointer' }} />
               <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, lineHeight: 1.5 }}>
-                Autorizo a <strong>Nova Seguridad</strong> el tratamiento de mis datos personales de acuerdo con la Ley 1581 de 2012 (Habeas Data) para ser contactado con fines comerciales.<span style={req}>*</span>
+                Autorizo a <strong>Palomares Consultor</strong> el tratamiento de mis datos personales de acuerdo con la Ley 1581 de 2012 (Habeas Data) para ser contactado con fines comerciales.<span style={req}>*</span>
               </span>
             </label>
             {errors.acepta_datos && <p style={errText}>{errors.acepta_datos}</p>}

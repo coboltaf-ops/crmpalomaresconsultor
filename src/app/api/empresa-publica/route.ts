@@ -11,7 +11,7 @@ interface EmpresaPublica {
 // GET — Información pública de la empresa (logo + nombre) para los formularios y login.
 export async function GET() {
   const data = await readList<EmpresaPublica>(KV_KEY)
-  const empresa = data[0] || { nombre: 'Nova Seguridad', logo_url: '' }
+  const empresa = data[0] || { nombre: 'Palomares Consultor', logo_url: '' }
   // Cache fuerte: estos datos cambian muy poco
   return NextResponse.json(empresa, {
     headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300' },
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const empresa: EmpresaPublica = {
-      nombre: String(body.nombre || '').trim() || 'Nova Seguridad',
+      nombre: String(body.nombre || '').trim() || 'Palomares Consultor',
       logo_url: String(body.logo_url || ''),
     }
     await writeList(KV_KEY, [empresa])
