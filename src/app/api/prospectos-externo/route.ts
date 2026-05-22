@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
-import { getSmtpConfig } from '@/shared/lib/smtp'
 
 const KV_KEY = 'crm-palomares-prospectos'
 
@@ -89,23 +88,9 @@ export async function POST(req: NextRequest) {
       // Continuar aunque falle el almacenamiento - el email es lo importante
     }
 
-    // Enviar email de confirmación al prospecto (opcional)
+    // Enviar email de confirmación al prospecto
     try {
-      const smtp = await getSmtpConfig()
-      if (!smtp.user || !smtp.pass) {
-        console.warn('SMTP no configurado, saltando envío de email')
-        return NextResponse.json({
-          ok: true,
-          id: nuevo.id,
-          mensaje: `Gracias ${nombre}, hemos recibido su información exitosamente.`,
-        }, { headers: corsHeaders })
-      }
-      const transporter = nodemailer.createTransport({
-        host: smtp.host,
-        port: smtp.port,
-        secure: smtp.secure,
-        auth: { user: smtp.user, pass: smtp.pass },
-      })
+      const resend = new Resend(process.env.RESEND_API_KEY)
 
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff">
@@ -171,8 +156,8 @@ export async function POST(req: NextRequest) {
           </div>
         </div>`
 
-      await transporter.sendMail({
-        from: process.env.SMTP_USER,
+      await resend.emails.send({
+        from: 'noreply@resend.dev',
         to: correo.trim().toLowerCase(),
         subject: 'Solicitud de Servicio Recibida',
         html,
@@ -185,7 +170,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            de: process.env.SMTP_USER,
+            de: 'noreply@resend.dev',
             para: correo.trim().toLowerCase(),
             asunto: 'Solicitud de Servicio Recibida',
             modulo: 'prospectos',
@@ -205,7 +190,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            de: process.env.SMTP_USER,
+            de: 'noreply@resend.dev',
             para: correo.trim().toLowerCase(),
             asunto: 'Solicitud de Servicio Recibida',
             modulo: 'prospectos',
