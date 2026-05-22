@@ -88,9 +88,9 @@ export async function POST(req: NextRequest) {
       // Continuar aunque falle el almacenamiento - el email es lo importante
     }
 
-    // Enviar email de confirmación al prospecto
+    // Enviar email de confirmación al prospecto (Gmail App Password)
     try {
-      console.log('Intentando enviar email...')
+      console.log('Intentando enviar email con Gmail App Password...')
       const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT || '587'),
