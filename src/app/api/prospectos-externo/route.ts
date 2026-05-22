@@ -184,6 +184,10 @@ export async function POST(req: NextRequest) {
 
     } catch (emailErr) {
       console.error('Error enviando email de confirmación:', emailErr)
+      console.error('Error details:', {
+        message: emailErr instanceof Error ? emailErr.message : String(emailErr),
+        stack: emailErr instanceof Error ? emailErr.stack : 'No stack'
+      })
 
       // Registrar error en log
       try {
