@@ -59,7 +59,9 @@ export async function POST(req: NextRequest) {
     // Enviar correo con Gmail SMTP
     try {
       const smtpConfig = await getSmtpConfig()
+      console.log('📧 SMTP Config:', { host: smtpConfig.host, port: smtpConfig.port, user: smtpConfig.user, secure: smtpConfig.secure, source: smtpConfig.source })
       if (smtpConfig.user && smtpConfig.pass) {
+        console.log('✅ SMTP credentials found, creating transporter...')
         const transporter = nodemailer.createTransport({
           host: smtpConfig.host,
           port: smtpConfig.port,
@@ -124,15 +126,19 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`
 
-        await transporter.sendMail({
+        console.log('📨 Sending email to:', correo.trim().toLowerCase())
+        const info = await transporter.sendMail({
           from: `"Palomares Consultor" <${smtpConfig.from_email}>`,
           to: correo.trim().toLowerCase(),
           subject: 'Solicitud de Servicio Recibida',
           html,
         })
+        console.log('✅ Email sent successfully:', info.messageId)
+      } else {
+        console.error('❌ SMTP credentials missing - user:', smtpConfig.user, 'pass:', smtpConfig.pass ? 'YES' : 'NO')
       }
     } catch (emailErr) {
-      console.error('Error enviando email:', emailErr)
+      console.error('❌ Error enviando email:', emailErr)
     }
 
     return NextResponse.json({
