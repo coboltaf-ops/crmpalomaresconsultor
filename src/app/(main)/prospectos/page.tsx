@@ -41,7 +41,25 @@ export default function ProspectosPage() {
     if (pendingSearch) setSearch(pendingSearch)
     if (pendingAction === 'nuevo') { setSelected(emptyProspecto(nextConsecutivo('PRS-', prospectos.map(p => p.codigo)).codigo)); setIsForm(true) }
     if (pendingSearch || pendingAction) clearPending()
-    return () => {}
+  }, [])
+
+  useEffect(() => {
+    const syncExternalProspectos = async () => {
+      try {
+        const res = await fetch('/api/prospectos-externo')
+        const data = await res.json()
+        if (data.prospectos && Array.isArray(data.prospectos)) {
+          const existing = new Set(prospectos.map(p => p.id))
+          const newProspectos = data.prospectos.filter((p: any) => !existing.has(p.id))
+          newProspectos.forEach((p: any) => {
+            addProspecto({ ...p, id: p.id || crypto.randomUUID() })
+          })
+        }
+      } catch (err) {
+        console.error('Error syncing external prospectos:', err)
+      }
+    }
+    syncExternalProspectos()
   }, [])
 
   const refOptions = (table: string) => (refData[table as keyof typeof refData] || []).filter(r => r.situacion).map(r => r.descripcion)

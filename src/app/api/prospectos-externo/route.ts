@@ -153,6 +153,16 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function GET() {
+  try {
+    const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
+    return NextResponse.json({ prospectos }, { headers: corsHeaders })
+  } catch (err) {
+    console.error('Error fetching prospects:', err)
+    return NextResponse.json({ prospectos: [] }, { headers: corsHeaders })
+  }
+}
+
 export function OPTIONS() {
   return new NextResponse(null, { headers: corsHeaders })
 }
