@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
 
+// Fallback: guardar en memoria si KV no está disponible
+const PROSPECTOS_MEMORY: any[] = []
 const KV_PROSPECTOS = 'palomares-prospectos-crm'
 
 const corsHeaders = {
@@ -45,17 +47,18 @@ export async function POST(req: NextRequest) {
       seguimientos: [],
     }
 
-    // Guardar en KV (almacenamiento persistente)
+    // Guardar en KV o fallback en memoria
     try {
       console.log('💾 Obteniendo prospectos del KV...')
-      const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
-      console.log('📋 Prospectos actuales en KV:', prospectos.length)
+      const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, PROSPECTOS_MEMORY)
+      console.log('📋 Prospectos actuales:', prospectos.length)
       prospectos.push(nuevoProspecto)
-      console.log('📝 Intentando guardar', prospectos.length, 'prospectos en KV...')
+      console.log('📝 Guardando', prospectos.length, 'prospectos...')
       await setToKV(KV_PROSPECTOS, prospectos)
-      console.log('✅ Prospecto guardado en CRM automáticamente')
+      console.log('✅ Prospecto guardado correctamente')
     } catch (err) {
-      console.error('❌ Error guardando en KV:', err)
+      console.error('❌ Error guardando prospecto:', err)
+      PROSPECTOS_MEMORY.push(nuevoProspecto)
     }
 
     // Enviar correo con Resend
@@ -147,11 +150,13 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
+    const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, PROSPECTOS_MEMORY)
+    console.log('📦 GET /prospectos-externo: devolviendo', prospectos.length, 'prospectos')
     return NextResponse.json({ prospectos }, { headers: corsHeaders })
   } catch (err) {
     console.error('Error fetching prospects:', err)
-    return NextResponse.json({ prospectos: [] }, { headers: corsHeaders })
+    console.log('📦 Fallback: devolviendo prospectos de memoria:', PROSPECTOS_MEMORY.length)
+    return NextResponse.json({ prospectos: PROSPECTOS_MEMORY }, { headers: corsHeaders })
   }
 }
 
