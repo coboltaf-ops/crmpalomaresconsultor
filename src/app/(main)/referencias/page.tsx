@@ -70,7 +70,7 @@ export default function ReferenciasPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Tablas de Referencias</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>🔥 TEST VERCEL BUILD - Tablas de Referencias</h1>
       <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 20 }}>Valores de listas desplegables del sistema</p>
 
       {/* Table selector — ordenado alfabéticamente por label */}
