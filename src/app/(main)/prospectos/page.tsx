@@ -46,21 +46,26 @@ export default function ProspectosPage() {
   useEffect(() => {
     const syncExternalProspectos = async () => {
       try {
+        console.log('🔄 Sincronizando prospectos desde KV...')
         const res = await fetch('/api/prospectos-externo')
         const data = await res.json()
+        console.log('📦 Prospectos recibidos del KV:', data.prospectos?.length || 0)
         if (data.prospectos && Array.isArray(data.prospectos)) {
           const existing = new Set(prospectos.map(p => p.id))
+          console.log('✅ Prospectos existentes en store:', prospectos.length)
           const newProspectos = data.prospectos.filter((p: any) => !existing.has(p.id))
+          console.log('➕ Nuevos prospectos a agregar:', newProspectos.length)
           newProspectos.forEach((p: any) => {
+            console.log('➕ Agregando prospecto:', p.nombre, p.apellido)
             addProspecto({ ...p, id: p.id || crypto.randomUUID() })
           })
         }
       } catch (err) {
-        console.error('Error syncing external prospectos:', err)
+        console.error('❌ Error syncing external prospectos:', err)
       }
     }
     syncExternalProspectos()
-  }, [])
+  }, [prospectos, addProspecto])
 
   const refOptions = (table: string) => (refData[table as keyof typeof refData] || []).filter(r => r.situacion).map(r => r.descripcion)
 
