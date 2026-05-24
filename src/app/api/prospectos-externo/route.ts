@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { saveProspectoSupabase, getProspectosSupabase } from '@/shared/lib/supabase-client'
 import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
 
-// Fallback: guardar en memoria si KV no está disponible
-const PROSPECTOS_MEMORY: any[] = []
 const KV_PROSPECTOS = 'palomares-prospectos-crm'
 
 const corsHeaders = {
@@ -47,18 +46,21 @@ export async function POST(req: NextRequest) {
       seguimientos: [],
     }
 
-    // Guardar en KV o fallback en memoria
+    // Guardar en Supabase
     try {
-      console.log('💾 Obteniendo prospectos del KV...')
-      const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, PROSPECTOS_MEMORY)
-      console.log('📋 Prospectos actuales:', prospectos.length)
-      prospectos.push(nuevoProspecto)
-      console.log('📝 Guardando', prospectos.length, 'prospectos...')
-      await setToKV(KV_PROSPECTOS, prospectos)
-      console.log('✅ Prospecto guardado correctamente')
+      console.log('💾 Guardando prospecto en Supabase...')
+      const result = await saveProspectoSupabase(nuevoProspecto)
+      if (result) {
+        console.log('✅ Prospecto guardado en Supabase exitosamente')
+      } else {
+        console.warn('⚠️ Supabase no disponible, intentando KV...')
+        const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
+        prospectos.push(nuevoProspecto)
+        await setToKV(KV_PROSPECTOS, prospectos)
+        console.log('✅ Prospecto guardado en KV como fallback')
+      }
     } catch (err) {
       console.error('❌ Error guardando prospecto:', err)
-      PROSPECTOS_MEMORY.push(nuevoProspecto)
     }
 
     // Enviar correo con Resend
@@ -150,13 +152,20 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, PROSPECTOS_MEMORY)
-    console.log('📦 GET /prospectos-externo: devolviendo', prospectos.length, 'prospectos')
+    console.log('📦 Obteniendo prospectos de Supabase...')
+    let prospectos = await getProspectosSupabase()
+
+    // Fallback a KV si Supabase no tiene datos
+    if (!prospectos || prospectos.length === 0) {
+      console.log('⚠️ Supabase vacío, intentando KV...')
+      prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
+    }
+
+    console.log('📦 Devolviendo', prospectos.length, 'prospectos')
     return NextResponse.json({ prospectos }, { headers: corsHeaders })
   } catch (err) {
-    console.error('Error fetching prospects:', err)
-    console.log('📦 Fallback: devolviendo prospectos de memoria:', PROSPECTOS_MEMORY.length)
-    return NextResponse.json({ prospectos: PROSPECTOS_MEMORY }, { headers: corsHeaders })
+    console.error('❌ Error obteniendo prospectos:', err)
+    return NextResponse.json({ prospectos: [] }, { headers: corsHeaders })
   }
 }
 
