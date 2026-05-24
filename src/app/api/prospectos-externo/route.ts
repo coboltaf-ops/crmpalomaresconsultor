@@ -105,8 +105,10 @@ export async function POST(req: NextRequest) {
         <p style="margin-top: 20px;">Hemos recibido una solicitud de servicio. Gracias por contar con nosotros, a la brevedad posible lo atenderemos.</p>
       </div>
       <div class="info-box">
+        <div class="info-row"><span class="info-label">Fecha:</span> <span class="info-value">${fechaReg || '—'}</span></div>
         <div class="info-row"><span class="info-label">Tipo de Solicitud:</span> <span class="info-value">${tipo_solicitud || '—'}</span></div>
         <div class="info-row"><span class="info-label">Su Empresa:</span> <span class="info-value">${empresa || '—'}</span></div>
+        <div class="info-row"><span class="info-label">Su Teléfono:</span> <span class="info-value">${nro_movil || '—'}</span></div>
         <div class="info-row"><span class="info-label">Su Ciudad:</span> <span class="info-value">${ciudad || '—'}</span></div>
         <div class="info-row"><span class="info-label">Su País:</span> <span class="info-value">${pais || 'Colombia'}</span></div>
       </div>
