@@ -15,5 +15,39 @@
     "campo": "",
     "valor_anterior": "",
     "valor_nuevo": ""
+  },
+  {
+    "id": "b6abf836-bb36-41cb-8d8e-04c8f63c786b",
+    "fecha": "2026-05-24T01:41:52.348Z",
+    "fecha_dia": "23/05/2026",
+    "hora": "08:41:52 p. m.",
+    "usuario": "admin",
+    "usuario_nombre": "Admin CRM",
+    "rol": "Admin",
+    "modulo": "auth",
+    "accion": "LOGIN",
+    "registro_codigo": "",
+    "registro_nombre": "",
+    "detalle": "Inicio de sesión correcto",
+    "campo": "",
+    "valor_anterior": "",
+    "valor_nuevo": ""
+  },
+  {
+    "id": "b83588af-75c9-4bac-9cdf-d06028a56093",
+    "fecha": "2026-05-24T01:46:37.661Z",
+    "fecha_dia": "23/05/2026",
+    "hora": "08:46:37 p. m.",
+    "usuario": "admin",
+    "usuario_nombre": "Admin CRM",
+    "rol": "Admin",
+    "modulo": "auth",
+    "accion": "LOGIN",
+    "registro_codigo": "",
+    "registro_nombre": "",
+    "detalle": "Inicio de sesión correcto",
+    "campo": "",
+    "valor_anterior": "",
+    "valor_nuevo": ""
   }
 ]
