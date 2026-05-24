@@ -241,10 +241,11 @@ export const useReferenceStore = create<ReferenceState>()(
       migrate: (persisted: unknown, version: number) => {
         const state = (persisted ?? {}) as Partial<ReferenceState>
         if (version < 3) {
-          if (state.data) {
+          if (!state.data) state.data = { ...initialData }
+          else {
             for (const table of Object.keys(initialData) as ReferenceTableId[]) {
               if (!state.data[table]) {
-                state.data[table] = initialData[table]
+                state.data[table] = [...initialData[table]]
               }
             }
           }
