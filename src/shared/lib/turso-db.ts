@@ -1,6 +1,6 @@
 import { createClient } from '@libsql/client'
 
-const tursoUrl = process.env.TURSO_CONNECTION_URL
+const tursoUrl = process.env.TURSO_DATABASE || process.env.TURSO_CONNECTION_URL
 const tursoToken = process.env.TURSO_AUTH_TOKEN
 
 let db: any = null
