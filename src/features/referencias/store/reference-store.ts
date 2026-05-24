@@ -237,13 +237,16 @@ export const useReferenceStore = create<ReferenceState>()(
     }),
     {
       name: 'crm-referencias-storage',
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, version: number) => {
         const state = (persisted ?? {}) as Partial<ReferenceState>
-        if (version < 2) {
-          // Agregar tipo_solicitud si no existe
-          if (state.data && !state.data.tipo_solicitud) {
-            state.data.tipo_solicitud = initialData.tipo_solicitud
+        if (version < 3) {
+          if (state.data) {
+            for (const table of Object.keys(initialData) as ReferenceTableId[]) {
+              if (!state.data[table]) {
+                state.data[table] = initialData[table]
+              }
+            }
           }
         }
         if (version < 1) {
