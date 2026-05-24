@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
         console.log('📨 Sending email to:', correo.trim().toLowerCase())
         const result = await resend.emails.send({
-          from: 'noreply@consultorpalomares.vercel.app',
+          from: 'noreply@resend.dev',
           to: correo.trim().toLowerCase(),
           subject: 'Solicitud de Servicio Recibida',
           html,
