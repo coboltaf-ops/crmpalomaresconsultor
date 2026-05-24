@@ -15,11 +15,6 @@ import { Seguimiento } from '@/shared/types/seguimiento'
 import WhatsAppButton from '@/shared/components/whatsapp-button'
 
 
-interface ProspectoExterno {
-  id: string; nombre: string; apellido: string; empresa: string; correo: string
-  nro_movil: string; descripcion_requerimiento: string; fecha_registro: string
-  hora_registro: string; importado: boolean
-}
 
 const emptyProspecto = (codigo: string): Prospecto => ({
   id: '', codigo, nombre: '', apellido: '', empresa: '', correo: '', nro_movil: '',
