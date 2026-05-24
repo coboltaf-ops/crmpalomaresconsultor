@@ -42,6 +42,7 @@ export const REFERENCE_TABLES = [
   { id: 'unidad_medida', label: 'Unidad de Medida' },
   { id: 'situacion_prospecto', label: 'Situación Prospecto' },
   { id: 'origen_prospecto', label: 'Origen Prospecto' },
+  { id: 'tipo_solicitud', label: 'Tipo de Solicitud' },
   { id: 'vendedores', label: 'Vendedores', custom: true },
 ] as const
 
