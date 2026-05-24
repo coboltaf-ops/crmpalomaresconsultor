@@ -30,27 +30,27 @@ const currentMonthKey = () => {
 
 // GET: lista eventos de un mes específico (o actual)
 export async function GET(req: NextRequest) {
+  const mes = req.nextUrl.searchParams.get('mes') || currentMonthKey()
+  const modulo = req.nextUrl.searchParams.get('modulo')
+  const usuario = req.nextUrl.searchParams.get('usuario')
+  const accion = req.nextUrl.searchParams.get('accion')
+  const codigo = req.nextUrl.searchParams.get('codigo')
+
+  let result: AuditEvent[] = []
   try {
-    const mes = req.nextUrl.searchParams.get('mes') || currentMonthKey()
-    const modulo = req.nextUrl.searchParams.get('modulo')
-    const usuario = req.nextUrl.searchParams.get('usuario')
-    const accion = req.nextUrl.searchParams.get('accion')
-    const codigo = req.nextUrl.searchParams.get('codigo')
-
     const data = await readList<AuditEvent>(keyForMonth(mes))
-    let result = data
-    if (modulo) result = result.filter(e => e.modulo === modulo)
-    if (usuario) result = result.filter(e => e.usuario === usuario || e.usuario_nombre?.toLowerCase().includes(usuario.toLowerCase()))
-    if (accion) result = result.filter(e => e.accion === accion)
-    if (codigo) result = result.filter(e => (e.registro_codigo || '').toLowerCase().includes(codigo.toLowerCase()))
-
-    // Más recientes primero
-    result.sort((a, b) => b.fecha.localeCompare(a.fecha))
-    return NextResponse.json({ eventos: result, total: result.length, mes })
+    result = data || []
   } catch (err) {
-    console.error('[audit-log] GET error:', err)
-    return NextResponse.json({ eventos: [], total: 0, mes: currentMonthKey() })
+    console.error('[audit-log] readList error:', err)
   }
+
+  if (modulo) result = result.filter(e => e.modulo === modulo)
+  if (usuario) result = result.filter(e => e.usuario === usuario || e.usuario_nombre?.toLowerCase().includes(usuario.toLowerCase()))
+  if (accion) result = result.filter(e => e.accion === accion)
+  if (codigo) result = result.filter(e => (e.registro_codigo || '').toLowerCase().includes(codigo.toLowerCase()))
+
+  result.sort((a, b) => b.fecha.localeCompare(a.fecha))
+  return NextResponse.json({ eventos: result, total: result.length, mes })
 }
 
 // POST: registrar un nuevo evento de auditoría
