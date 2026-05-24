@@ -1,0 +1,19 @@
+[
+  {
+    "id": "64710287-52a2-4364-8338-db502826451d",
+    "fecha": "2026-05-24T01:37:19.774Z",
+    "fecha_dia": "23/05/2026",
+    "hora": "08:37:19 p. m.",
+    "usuario": "admin",
+    "usuario_nombre": "Admin CRM",
+    "rol": "Admin",
+    "modulo": "auth",
+    "accion": "LOGIN",
+    "registro_codigo": "",
+    "registro_nombre": "",
+    "detalle": "Inicio de sesión correcto",
+    "campo": "",
+    "valor_anterior": "",
+    "valor_nuevo": ""
+  }
+]

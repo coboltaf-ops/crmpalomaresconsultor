@@ -1,0 +1,50 @@
+[
+  {
+    "id": "dd65853e-3e2c-494f-afa1-adf4844a63b6",
+    "codigo": "CLI-001",
+    "razon_social": "GRUPO EMPRESARIAL ANDINO S.A.S.",
+    "codigo_acceso": "ACC-GRP001"
+  },
+  {
+    "id": "b25ab697-bdbf-46f1-ae10-81fffa64db2d",
+    "codigo": "CLI-002",
+    "razon_social": "TECNOLOGÍA PERUANA DEL PACÍFICO S.A.C.",
+    "codigo_acceso": "ACC-TPC002"
+  },
+  {
+    "id": "902f6e53-3c8e-4220-b776-7463f2e74b8a",
+    "codigo": "CLI-003",
+    "razon_social": "DISTRIBUIDORA CONTINENTAL DE ALIMENTOS LTDA.",
+    "codigo_acceso": "ACC-DCA003"
+  },
+  {
+    "id": "ea2549bd-b3f4-4f4e-ae06-8c765caea6aa",
+    "codigo": "CLI-004",
+    "razon_social": "SOLUCIONES INDUSTRIALES QUITO CÍA. LTDA.",
+    "codigo_acceso": "ACC-SIQ004"
+  },
+  {
+    "id": "7a436e1c-e86f-4878-8f07-249469780b03",
+    "codigo": "CLI-005",
+    "razon_social": "LOGÍSTICA DEL CARIBE S.A.",
+    "codigo_acceso": "ACC-LGC005"
+  },
+  {
+    "id": "d84f193d-eaec-4b43-bfe0-7f082a731acb",
+    "codigo": "CLI-006",
+    "razon_social": "MINERÍA VERDE SPA",
+    "codigo_acceso": "ACC-MVD006"
+  },
+  {
+    "id": "532e7ee8-a51b-4d7e-93ae-91d26fce5f29",
+    "codigo": "CLI-007",
+    "razon_social": "AGROINDUSTRIAS DEL LLANO C.A.",
+    "codigo_acceso": "ACC-AGL007"
+  },
+  {
+    "id": "f5c50879-b6f5-4410-a219-845fba55d252",
+    "codigo": "CLI-008",
+    "razon_social": "CONSULTORES FINANCIEROS DEL VALLE S.A.S.",
+    "codigo_acceso": "ACC-CFV008"
+  }
+]

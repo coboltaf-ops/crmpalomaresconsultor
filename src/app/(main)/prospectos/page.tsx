@@ -64,13 +64,39 @@ export default function ProspectosPage() {
     modulo: 'prospectos',
   })
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selected) return
+    const isNew = !selected.id
+    const newId = isNew ? crypto.randomUUID() : selected.id
     if (selected.id) {
       const _anterior = prospectos.find(x => x.id === selected.id); updateProspecto(selected.id, selected); logAudit({ ...auditParams(), accion: "MODIFICAR", registro_codigo: selected.codigo, registro_nombre: `${selected.nombre} ${selected.apellido}`, detalle: computarDiff(_anterior as unknown as Record<string, unknown>, selected as unknown as Record<string, unknown>) })
     } else {
-      addProspecto({ ...selected, id: crypto.randomUUID() })
+      addProspecto({ ...selected, id: newId })
+      // Enviar correo de recepción
+      if (selected.correo) {
+        try {
+          await fetch('/api/send-prospecto-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: selected.correo,
+              nombre: selected.nombre,
+              apellido: selected.apellido,
+              empresa: selected.empresa,
+              correo: selected.correo,
+              nro_movil: selected.nro_movil,
+              origen_prospecto: selected.origen_prospecto,
+              detalle_requerimiento: selected.detalle_requerimiento,
+              ciudad: selected.ciudad,
+              codigo: selected.codigo,
+              fecha_registro: selected.fecha_registro,
+            }),
+          })
+        } catch (err) {
+          console.error('Error enviando correo de prospecto:', err)
+        }
+      }
     }
     setIsForm(false); setSelected(null)
   }
