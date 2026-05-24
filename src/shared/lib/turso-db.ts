@@ -5,11 +5,20 @@ const tursoToken = process.env.TURSO_AUTH_TOKEN
 
 let db: any = null
 
+console.log('🔧 Inicializando Turso...')
+console.log('TURSO_CONNECTION_URL:', tursoUrl ? '✅ CONFIGURED' : '❌ MISSING')
+console.log('TURSO_AUTH_TOKEN:', tursoToken ? '✅ CONFIGURED' : '❌ MISSING')
+
 if (tursoUrl && tursoToken) {
-  db = createClient({
-    url: tursoUrl,
-    authToken: tursoToken,
-  })
+  try {
+    db = createClient({
+      url: tursoUrl,
+      authToken: tursoToken,
+    })
+    console.log('✅ Turso client creado')
+  } catch (err) {
+    console.error('❌ Error creando Turso client:', err)
+  }
 }
 
 export async function initializeDB() {
@@ -49,12 +58,13 @@ export async function initializeDB() {
 
 export async function saveProspecto(prospecto: any) {
   if (!db) {
-    console.error('❌ Turso no disponible')
+    console.error('❌ Turso DB no inicializado')
     return null
   }
 
   try {
-    await db.execute({
+    console.log('💾 Ejecutando INSERT para:', prospecto.codigo)
+    const result = await db.execute({
       sql: `
         INSERT INTO prospectos_externos (
           id, codigo, nombre, apellido, empresa, correo, nro_movil,
@@ -79,10 +89,10 @@ export async function saveProspecto(prospecto: any) {
         prospecto.fecha_registro,
       ],
     })
-    console.log('✅ Prospecto guardado en Turso:', prospecto.codigo)
+    console.log('✅ INSERT ejecutado exitosamente para:', prospecto.codigo, 'Result:', result)
     return prospecto
   } catch (err) {
-    console.error('❌ Error guardando en Turso:', err)
+    console.error('❌ Error guardando en Turso:', err instanceof Error ? err.message : err)
     return null
   }
 }
