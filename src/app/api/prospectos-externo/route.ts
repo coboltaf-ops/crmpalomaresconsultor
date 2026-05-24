@@ -11,6 +11,8 @@ const corsHeaders = {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+    console.log('📥 Datos recibidos del formulario:', JSON.stringify(body, null, 2))
+
     const { nombre, apellido, empresa, correo, nro_movil, ciudad, linea_interes, descripcion_requerimiento } = body
 
     if (!nombre || !apellido || !correo || !descripcion_requerimiento) {
@@ -24,6 +26,7 @@ export async function POST(req: NextRequest) {
 
     const now = new Date()
     const fechaReg = now.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+    console.log('📅 Fecha de registro:', fechaReg)
 
     const nuevoProspecto = {
       id: crypto.randomUUID(),
@@ -42,6 +45,7 @@ export async function POST(req: NextRequest) {
       fecha_registro: fechaReg,
       seguimientos: [],
     }
+    console.log('✅ Prospecto creado:', JSON.stringify(nuevoProspecto, null, 2))
 
     // Guardar en Turso
     try {
@@ -118,7 +122,13 @@ export async function POST(req: NextRequest) {
 </body>
 </html>`
 
-        console.log('📨 Sending email to:', correo.trim().toLowerCase())
+        console.log('📨 Email a enviar:', {
+          destinatario: correo.trim().toLowerCase(),
+          nombre_interpolado: `${nombre} ${apellido}`,
+          empresa_interpolada: empresa || 'VACÍO',
+          servicio_interpolado: linea_interes || 'VACÍO',
+          telefono_interpolado: nro_movil || 'VACÍO',
+        })
         const result = await resend.emails.send({
           from: 'noreply@resend.dev',
           to: correo.trim().toLowerCase(),
