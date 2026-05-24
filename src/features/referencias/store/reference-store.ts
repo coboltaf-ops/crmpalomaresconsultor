@@ -194,6 +194,15 @@ const initialData: RefData = {
     { id: '6', descripcion: 'Email', situacion: true },
     { id: '7', descripcion: 'Otro', situacion: true },
   ],
+  tipo_solicitud: [
+    { id: '1', descripcion: 'CONSULTORÍA GERENCIAL', situacion: true },
+    { id: '2', descripcion: 'IMPLEMENTACIÓN DE SOFTWARE', situacion: true },
+    { id: '3', descripcion: 'TRANSFORMACIÓN DIGITAL', situacion: true },
+    { id: '4', descripcion: 'CAPACITACIÓN', situacion: true },
+    { id: '5', descripcion: 'AUDITORÍA', situacion: true },
+    { id: '6', descripcion: 'SOPORTE TÉCNICO', situacion: true },
+    { id: '7', descripcion: 'OTRO', situacion: true },
+  ],
   vendedores: [],
 }
 
