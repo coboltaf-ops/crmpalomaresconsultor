@@ -46,18 +46,11 @@ export async function POST(req: NextRequest) {
       seguimientos: [],
     }
 
-    // Guardar en KV (almacenamiento persistente) Y agregar al módulo Prospectos
+    // Guardar en KV (almacenamiento persistente)
     try {
       const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
       prospectos.push(nuevoProspecto)
       await setToKV(KV_PROSPECTOS, prospectos)
-
-      // TAMBIÉN guardar en el store de Prospectos del CRM
-      const KV_CRM_PROSPECTOS = 'palomares-prospectos-crm'
-      const crmProspectos = await getFromKV<any[]>(KV_CRM_PROSPECTOS, [])
-      crmProspectos.push(nuevoProspecto)
-      await setToKV(KV_CRM_PROSPECTOS, crmProspectos)
-
       console.log('✅ Prospecto guardado en CRM automáticamente')
     } catch (err) {
       console.error('Error guardando en KV:', err)
