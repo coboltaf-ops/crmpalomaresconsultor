@@ -292,7 +292,7 @@ export default function ProspectosPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Prospectos</h1>
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Gestión de prospectos comerciales</p>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Sincronización automática desde formulario web</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {permisos.editar && tab === 'registros' && (
