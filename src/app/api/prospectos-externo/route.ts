@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
-
-const KV_KEY = 'prospectos-externos-crm'
+import { saveProspecto, getProspectos, initializeDB } from '@/shared/lib/turso-db'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,15 +43,16 @@ export async function POST(req: NextRequest) {
       seguimientos: [],
     }
 
-    // Guardar en KV
+    // Guardar en Turso
     try {
-      console.log('💾 Guardando prospecto en KV...')
-      const prospectos = await getFromKV<any[]>(KV_KEY, [])
-      prospectos.push(nuevoProspecto)
-      await setToKV(KV_KEY, prospectos)
-      console.log('✅ Prospecto #' + nuevoProspecto.codigo + ' guardado en KV')
+      console.log('💾 Guardando prospecto en Turso...')
+      await initializeDB()
+      const result = await saveProspecto(nuevoProspecto)
+      if (result) {
+        console.log('✅ Prospecto #' + nuevoProspecto.codigo + ' guardado en Turso')
+      }
     } catch (err) {
-      console.error('❌ Error guardando en KV:', err)
+      console.error('❌ Error guardando en Turso:', err)
     }
 
     // Enviar correo con Resend
@@ -145,8 +144,9 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    const prospectos = await getFromKV<any[]>(KV_KEY, [])
-    console.log('📦 GET: devolviendo', prospectos.length, 'prospectos de KV')
+    await initializeDB()
+    const prospectos = await getProspectos()
+    console.log('📦 GET: devolviendo', prospectos.length, 'prospectos de Turso')
     return NextResponse.json({ prospectos }, { headers: corsHeaders })
   } catch (err) {
     console.error('❌ Error GET:', err)
