@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import nodemailer from 'nodemailer'
-import { getSmtpConfig } from '@/shared/lib/smtp'
+import { Resend } from 'resend'
 import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
 
 const KV_PROSPECTOS = 'palomares-prospectos-crm'
@@ -56,19 +55,13 @@ export async function POST(req: NextRequest) {
       console.error('Error guardando en KV:', err)
     }
 
-    // Enviar correo con Gmail SMTP
+    // Enviar correo con Resend
     try {
-      const smtpConfig = await getSmtpConfig()
-      console.log('📧 SMTP Config:', { host: smtpConfig.host, port: smtpConfig.port, user: smtpConfig.user, secure: smtpConfig.secure, source: smtpConfig.source })
-      if (smtpConfig.user && smtpConfig.pass) {
-        console.log('✅ SMTP credentials found, creating transporter...')
-        const transporter = nodemailer.createTransport({
-          host: smtpConfig.host,
-          port: smtpConfig.port,
-          secure: smtpConfig.secure,
-          auth: { user: smtpConfig.user, pass: smtpConfig.pass },
-        })
-
+      const resendApiKey = process.env.RESEND_API_KEY
+      if (!resendApiKey) {
+        console.error('❌ RESEND_API_KEY no configurada')
+      } else {
+        const resend = new Resend(resendApiKey)
         const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -89,7 +82,6 @@ export async function POST(req: NextRequest) {
     .info-label { color: #6b7280; font-weight: 600; display: inline-block; width: 100px; }
     .info-value { color: #1f2937; }
     .cta-section { margin: 30px 0; text-align: center; }
-    .cta-button { display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: bold; }
     .footer { padding: 25px 30px; background: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #6b7280; }
     .footer p { margin: 5px 0; }
   </style>
@@ -127,18 +119,16 @@ export async function POST(req: NextRequest) {
 </html>`
 
         console.log('📨 Sending email to:', correo.trim().toLowerCase())
-        const info = await transporter.sendMail({
-          from: `"Palomares Consultor" <${smtpConfig.from_email}>`,
+        const result = await resend.emails.send({
+          from: 'noreply@consultorpalomares.vercel.app',
           to: correo.trim().toLowerCase(),
           subject: 'Solicitud de Servicio Recibida',
           html,
         })
-        console.log('✅ Email sent successfully:', info.messageId)
-      } else {
-        console.error('❌ SMTP credentials missing - user:', smtpConfig.user, 'pass:', smtpConfig.pass ? 'YES' : 'NO')
+        console.log('✅ Email sent successfully:', result.data?.id || 'unknown')
       }
     } catch (emailErr) {
-      console.error('❌ Error enviando email:', emailErr)
+      console.error('❌ Error enviando email con Resend:', emailErr)
     }
 
     return NextResponse.json({
