@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { saveProspecto, getProspectos, initializeDB } from '@/shared/lib/turso-db'
 
+// Versión 2: Incluye logging detallado de interpolación
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
