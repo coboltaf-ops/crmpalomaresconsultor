@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { saveProspectoSupabase, getProspectosSupabase } from '@/shared/lib/supabase-client'
 import { getFromKV, setToKV } from '@/shared/lib/kv-direct'
 
-const KV_PROSPECTOS = 'palomares-prospectos-crm'
+const KV_KEY = 'prospectos-externos-crm'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,21 +45,15 @@ export async function POST(req: NextRequest) {
       seguimientos: [],
     }
 
-    // Guardar en Supabase
+    // Guardar en KV
     try {
-      console.log('💾 Guardando prospecto en Supabase...')
-      const result = await saveProspectoSupabase(nuevoProspecto)
-      if (result) {
-        console.log('✅ Prospecto guardado en Supabase exitosamente')
-      } else {
-        console.warn('⚠️ Supabase no disponible, intentando KV...')
-        const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
-        prospectos.push(nuevoProspecto)
-        await setToKV(KV_PROSPECTOS, prospectos)
-        console.log('✅ Prospecto guardado en KV como fallback')
-      }
+      console.log('💾 Guardando prospecto en KV...')
+      const prospectos = await getFromKV<any[]>(KV_KEY, [])
+      prospectos.push(nuevoProspecto)
+      await setToKV(KV_KEY, prospectos)
+      console.log('✅ Prospecto #' + nuevoProspecto.codigo + ' guardado en KV')
     } catch (err) {
-      console.error('❌ Error guardando prospecto:', err)
+      console.error('❌ Error guardando en KV:', err)
     }
 
     // Enviar correo con Resend
@@ -152,19 +145,11 @@ export async function POST(req: NextRequest) {
 
 export async function GET() {
   try {
-    console.log('📦 Obteniendo prospectos de Supabase...')
-    let prospectos = await getProspectosSupabase()
-
-    // Fallback a KV si Supabase no tiene datos
-    if (!prospectos || prospectos.length === 0) {
-      console.log('⚠️ Supabase vacío, intentando KV...')
-      prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
-    }
-
-    console.log('📦 Devolviendo', prospectos.length, 'prospectos')
+    const prospectos = await getFromKV<any[]>(KV_KEY, [])
+    console.log('📦 GET: devolviendo', prospectos.length, 'prospectos de KV')
     return NextResponse.json({ prospectos }, { headers: corsHeaders })
   } catch (err) {
-    console.error('❌ Error obteniendo prospectos:', err)
+    console.error('❌ Error GET:', err)
     return NextResponse.json({ prospectos: [] }, { headers: corsHeaders })
   }
 }
