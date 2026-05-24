@@ -47,12 +47,15 @@ export async function POST(req: NextRequest) {
 
     // Guardar en KV (almacenamiento persistente)
     try {
+      console.log('💾 Obteniendo prospectos del KV...')
       const prospectos = await getFromKV<any[]>(KV_PROSPECTOS, [])
+      console.log('📋 Prospectos actuales en KV:', prospectos.length)
       prospectos.push(nuevoProspecto)
+      console.log('📝 Intentando guardar', prospectos.length, 'prospectos en KV...')
       await setToKV(KV_PROSPECTOS, prospectos)
       console.log('✅ Prospecto guardado en CRM automáticamente')
     } catch (err) {
-      console.error('Error guardando en KV:', err)
+      console.error('❌ Error guardando en KV:', err)
     }
 
     // Enviar correo con Resend
