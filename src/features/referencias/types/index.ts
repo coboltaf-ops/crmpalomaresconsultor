@@ -26,7 +26,7 @@ export const REFERENCE_TABLES = [
   { id: 'situacion_pqrs', label: 'Situación PQRS' },
   { id: 'tipo_pqrs', label: 'Tipo PQRS' },
   { id: 'incidencias', label: 'Incidencias' },
-  { id: 'tipo_servicio_contrato', label: 'Tipo Servicio Contrato' },
+  { id: 'tipo_servicio_contrato', label: 'Tipo de Solicitud' },
   { id: 'centro_costo', label: 'Centro de Costo' },
   { id: 'situacion_contrato', label: 'Situación Contrato' },
   { id: 'tipo_identificacion', label: 'Tipo Identificación' },
@@ -42,7 +42,6 @@ export const REFERENCE_TABLES = [
   { id: 'unidad_medida', label: 'Unidad de Medida' },
   { id: 'situacion_prospecto', label: 'Situación Prospecto' },
   { id: 'origen_prospecto', label: 'Origen Prospecto' },
-  { id: 'tipo_solicitud', label: 'Tipo de Solicitud' },
   { id: 'vendedores', label: 'Vendedores', custom: true },
 ] as const
 
