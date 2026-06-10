@@ -15,7 +15,6 @@ import { fDate, todayColombia } from '@/shared/lib/format-date'
 import { nextConsecutivo } from '@/shared/lib/consecutivo'
 import ReportPanel from '@/shared/components/report-panel'
 import WhatsAppButton from '@/shared/components/whatsapp-button'
-import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 
 interface PQRSExterna {
   id: string; radicado: string; fecha: string; tipo: string; prioridad: string

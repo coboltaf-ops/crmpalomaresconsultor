@@ -9,7 +9,6 @@ import { usePermisos } from '@/shared/hooks/use-permisos'
 import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import DocumentosPanel from '@/shared/components/documentos-panel'
 import ReportPanel from '@/shared/components/report-panel'
-import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 
 function todayCO() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
 function fDate(d: string) { if (!d) return '—'; const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}` }

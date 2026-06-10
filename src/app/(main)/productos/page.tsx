@@ -15,7 +15,6 @@ import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import DocumentosPanel from '@/shared/components/documentos-panel'
 import { useAsistenteStore } from '@/shared/stores/asistente-store'
 import { Seguimiento } from '@/shared/types/seguimiento'
-import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 import NumeroInput from '@/shared/components/numero-input'
 import { getCurrencyCode } from '@/shared/lib/format-money'
 

@@ -4,7 +4,6 @@ import { usePersonalStore, Personal } from '@/features/personal/store/personal-s
 import { usePermisos } from '@/shared/hooks/use-permisos'
 import { fDate, todayColombia } from '@/shared/lib/format-date'
 import { nextConsecutivo } from '@/shared/lib/consecutivo'
-import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 import ReportPanel from '@/shared/components/report-panel'
 
 

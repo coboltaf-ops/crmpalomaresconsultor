@@ -14,7 +14,6 @@ import DocumentosPanel from '@/shared/components/documentos-panel'
 import { useAsistenteStore } from '@/shared/stores/asistente-store'
 import { Seguimiento } from '@/shared/types/seguimiento'
 import WhatsAppButton from '@/shared/components/whatsapp-button'
-import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 
 
 const emptyCliente = (codigo: string): Cliente => ({

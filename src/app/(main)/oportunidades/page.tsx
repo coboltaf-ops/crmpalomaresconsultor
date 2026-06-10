@@ -12,7 +12,6 @@ import { nextConsecutivo } from '@/shared/lib/consecutivo'
 import ReportPanel from '@/shared/components/report-panel'
 import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import { Seguimiento } from '@/shared/types/seguimiento'
-import BackupRestoreButtons from '@/shared/components/backup-restore-buttons'
 import NumeroInput from '@/shared/components/numero-input'
 import { getCurrencyCode } from '@/shared/lib/format-money'
 
