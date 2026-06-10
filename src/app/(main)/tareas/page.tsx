@@ -360,20 +360,7 @@ export default function TareasPage() {
 
   // ═══════════ LISTA PRINCIPAL ═══════════
   return (
-    <div>
-
-      {/* Backup / Restore — banner superior, siempre visible */}
-      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
-        <BackupRestoreButtons
-          modulo="tareas"
-          label="Tareas"
-          registros={tareas}
-          onClear={() => useTareasStore.setState({ tareas: [] })}
-          onRestore={(rs) => useTareasStore.setState({ tareas: rs })}
-        />
-      </div>
-      {/* Header */}
+    <div>      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(59,130,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✅</div>

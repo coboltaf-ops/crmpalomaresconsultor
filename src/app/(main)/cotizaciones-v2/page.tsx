@@ -764,20 +764,7 @@ export default function CotizacionesPage() {
 
   // ── MAIN VIEW ──
   return (
-    <div>
-
-      {/* Backup / Restore — banner superior, siempre visible */}
-      <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(245,158,11,0.25)', borderRadius: 12, border: '1px solid rgba(245,158,11,0.6)', boxShadow: '0 2px 12px rgba(245,158,11,0.2)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ color: '#fef08a', fontSize: 14, fontWeight: 900, textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>🗄️ Mantenimiento de datos:</span>
-        <BackupRestoreButtons
-          modulo="cotizaciones"
-          label="Cotizaciones"
-          registros={cotizaciones}
-          onClear={() => useCotizacionesStore.setState({ cotizaciones: [] })}
-          onRestore={(rs) => useCotizacionesStore.setState({ cotizaciones: rs })}
-        />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div>      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#ffffff', marginBottom: 4 }}>Cotizaciones</h1>
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Gestión de cotizaciones comerciales</p>
