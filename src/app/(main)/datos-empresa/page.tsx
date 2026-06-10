@@ -9,7 +9,6 @@ import { usePermisos } from '@/shared/hooks/use-permisos'
 import { nextConsecutivo } from '@/shared/lib/consecutivo'
 import SeguimientoPanel from '@/shared/components/seguimiento-panel'
 import { Seguimiento } from '@/shared/types/seguimiento'
-import MigrarMayusculasButton from '@/shared/components/migrar-mayusculas-button'
 import SmtpConfigSection from '@/shared/components/smtp-config-section'
 
 export default function DatosEmpresaPage() {
@@ -301,9 +300,7 @@ export default function DatosEmpresaPage() {
         </table>
       </div>
 
-      {/* Mantenimiento de datos — solo admin */}
       <SmtpConfigSection />
-      <MigrarMayusculasButton />
     </div>
   )
 }
