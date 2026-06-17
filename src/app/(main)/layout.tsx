@@ -354,33 +354,50 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button onClick={async () => {
-              if (confirm('⚠️ Esto borrará TODOS los datos del CRM. ¿SEGURO?')) {
+              if (confirm('⚠️ BORRAR TODO EL CRM - SIN RECUPERACIÓN. ¿CONFIRMA?')) {
                 try {
-                  // 1. Limpiar localStorage
+                  // 1. NUCLEAR: Borrar TODO localStorage
+                  const allKeys = Object.keys(localStorage)
+                  allKeys.forEach(k => localStorage.removeItem(k))
                   localStorage.clear()
-                  // 2. Limpiar sessionStorage
+
+                  // 2. Borrar sessionStorage
                   sessionStorage.clear()
-                  // 3. Limpiar IndexedDB
-                  const dbs = await indexedDB.databases()
-                  for (const db of dbs) {
-                    indexedDB.deleteDatabase(db.name)
-                  }
-                  // 4. Limpiar cookies
-                  const cookies = document.cookie.split(";")
-                  cookies.forEach(c => {
-                    const parts = c.split("=")
-                    const key = (parts[0] || "").trim()
-                    if (key) {
-                      document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
-                      document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;domain=${window.location.hostname};`
+
+                  // 3. Borrar TODOS los IndexedDB
+                  if (window.indexedDB) {
+                    try {
+                      const dbs = await indexedDB.databases()
+                      for (const db of dbs) {
+                        const req = indexedDB.deleteDatabase(db.name)
+                        await new Promise((res, rej) => {
+                          req.onsuccess = res
+                          req.onerror = rej
+                        })
+                      }
+                    } catch (e) {
+                      console.log('IndexedDB cleanup partial:', e)
                     }
-                  })
-                  // 5. Esperar y recargar
-                  await new Promise(r => setTimeout(r, 800))
-                  window.location.href = window.location.href
+                  }
+
+                  // 4. Borrar TODAS las cookies
+                  const cookies = document.cookie.split(";")
+                  for (const c of cookies) {
+                    const eqIdx = c.indexOf("=")
+                    const name = eqIdx > -1 ? c.substring(0, eqIdx).trim() : c.trim()
+                    if (name && name.length > 0) {
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;domain=${location.hostname}`
+                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;domain=.${location.hostname}`
+                    }
+                  }
+
+                  // 5. Esperar y hacer hard refresh
+                  await new Promise(r => setTimeout(r, 1000))
+                  window.location.href = window.location.href + '?nocache=' + Date.now()
                 } catch (err) {
-                  console.error('Error limpiando:', err)
-                  location.reload()
+                  console.error('Error:', err)
+                  location.href = location.href + '?nocache=' + Date.now()
                 }
               }
             }}
