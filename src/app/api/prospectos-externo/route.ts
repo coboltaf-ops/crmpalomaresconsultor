@@ -118,3 +118,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Error limpiando BD' }, { status: 500, headers: corsHeaders })
   }
 }
+
+export async function OPTIONS(req: NextRequest) {
+  return NextResponse.json(null, { headers: corsHeaders })
+}
