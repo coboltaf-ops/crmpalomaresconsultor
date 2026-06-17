@@ -356,48 +356,50 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <button onClick={async () => {
               if (confirm('⚠️ BORRAR TODO EL CRM - SIN RECUPERACIÓN. ¿CONFIRMA?')) {
                 try {
-                  // 1. NUCLEAR: Borrar TODO localStorage
+                  // 1. Borrar CADA key específico de Zustand
+                  const keys = [
+                    'crm-agente-sugerencias-storage', 'crm-centros-costo-storage', 'crm-clientes-storage',
+                    'crm-contactos-storage', 'crm-contratos-storage', 'crm-cotizaciones-storage',
+                    'crm-current-user-storage', 'crm-disenador-correos-storage', 'crm-email-log-storage',
+                    'crm-email-marketing-storage', 'crm-empresa-storage', 'crm-flujos-storage',
+                    'crm-lineas-servicio-storage', 'crm-modulos-storage', 'crm-oportunidades-storage',
+                    'crm-personal-storage', 'crm-pqrs-storage', 'crm-productos-storage',
+                    'crm-prospectos-storage', 'crm-referencias-storage', 'crm-roles-storage',
+                    'crm-tareas-storage', 'crm-usuarios-storage'
+                  ]
+                  keys.forEach(k => localStorage.removeItem(k))
+
+                  // 2. Borrar TODO lo demás en localStorage
                   const allKeys = Object.keys(localStorage)
                   allKeys.forEach(k => localStorage.removeItem(k))
                   localStorage.clear()
 
-                  // 2. Borrar sessionStorage
+                  // 3. Borrar sessionStorage
                   sessionStorage.clear()
 
-                  // 3. Borrar TODOS los IndexedDB
-                  if (window.indexedDB) {
-                    try {
-                      const dbs = await indexedDB.databases()
-                      for (const db of dbs) {
-                        const req = indexedDB.deleteDatabase(db.name)
-                        await new Promise((res, rej) => {
-                          req.onsuccess = res
-                          req.onerror = rej
-                        })
-                      }
-                    } catch (e) {
-                      console.log('IndexedDB cleanup partial:', e)
+                  // 4. Borrar IndexedDB completamente
+                  try {
+                    const dbs = await indexedDB.databases()
+                    for (const db of dbs) {
+                      indexedDB.deleteDatabase(db.name)
                     }
-                  }
+                  } catch (e) {}
 
-                  // 4. Borrar TODAS las cookies
+                  // 5. Borrar cookies
                   const cookies = document.cookie.split(";")
                   for (const c of cookies) {
                     const eqIdx = c.indexOf("=")
                     const name = eqIdx > -1 ? c.substring(0, eqIdx).trim() : c.trim()
                     if (name && name.length > 0) {
-                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`
-                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;domain=${location.hostname}`
-                      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;domain=.${location.hostname}`
+                      document.cookie = `${name}=;max-age=0;path=/`
                     }
                   }
 
-                  // 5. Esperar y hacer hard refresh
-                  await new Promise(r => setTimeout(r, 1000))
-                  window.location.href = window.location.href + '?nocache=' + Date.now()
+                  // 6. Hard reset - ir a login para asegurar que no quedan datos
+                  await new Promise(r => setTimeout(r, 500))
+                  window.location.href = '/login?t=' + Date.now()
                 } catch (err) {
-                  console.error('Error:', err)
-                  location.href = location.href + '?nocache=' + Date.now()
+                  window.location.href = '/login?t=' + Date.now()
                 }
               }
             }}
