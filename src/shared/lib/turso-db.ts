@@ -28,9 +28,15 @@ export async function initializeDB() {
   }
 
   try {
-    // Crear tabla si no existe
+    // Recrear tabla con estructura correcta
+    try {
+      await db.execute('DROP TABLE IF EXISTS prospectos_externos')
+    } catch (e) {
+      // Ignorar error si la tabla no existe
+    }
+
     await db.execute(`
-      CREATE TABLE IF NOT EXISTS prospectos_externos (
+      CREATE TABLE prospectos_externos (
         id TEXT PRIMARY KEY,
         codigo TEXT UNIQUE,
         nombre TEXT,
@@ -40,6 +46,7 @@ export async function initializeDB() {
         nro_movil TEXT,
         ciudad TEXT,
         origen_prospecto TEXT,
+        tipo_solicitud TEXT,
         detalle_requerimiento TEXT,
         actividad TEXT,
         pais TEXT,
@@ -68,9 +75,9 @@ export async function saveProspecto(prospecto: any) {
       sql: `
         INSERT INTO prospectos_externos (
           id, codigo, nombre, apellido, empresa, correo, nro_movil,
-          ciudad, origen_prospecto, detalle_requerimiento, actividad,
+          ciudad, origen_prospecto, tipo_solicitud, detalle_requerimiento, actividad,
           pais, situacion, fecha_registro
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
         prospecto.id,
@@ -82,6 +89,7 @@ export async function saveProspecto(prospecto: any) {
         prospecto.nro_movil,
         prospecto.ciudad,
         prospecto.origen_prospecto,
+        prospecto.tipo_solicitud,
         prospecto.detalle_requerimiento,
         prospecto.actividad,
         prospecto.pais,
