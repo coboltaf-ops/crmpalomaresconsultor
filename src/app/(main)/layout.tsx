@@ -389,9 +389,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   const cookies = document.cookie.split(";")
                   for (const c of cookies) {
                     const eqIdx = c.indexOf("=")
-                    const name = eqIdx > -1 ? c.substring(0, eqIdx).trim() : c.trim()
-                    if (name && name.length > 0) {
-                      document.cookie = `${name}=;max-age=0;path=/`
+                    const nameStr = eqIdx > -1 ? c.substring(0, eqIdx).trim() : c.trim()
+                    if (nameStr && nameStr.length > 0) {
+                      document.cookie = `${nameStr}=;max-age=0;path=/`
                     }
                   }
 
