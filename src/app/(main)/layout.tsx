@@ -353,55 +353,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={async () => {
-              if (confirm('⚠️ BORRAR TODO EL CRM - SIN RECUPERACIÓN. ¿CONFIRMA?')) {
-                try {
-                  // 1. Borrar CADA key específico de Zustand
-                  const keys = [
-                    'crm-agente-sugerencias-storage', 'crm-centros-costo-storage', 'crm-clientes-storage',
-                    'crm-contactos-storage', 'crm-contratos-storage', 'crm-cotizaciones-storage',
-                    'crm-current-user-storage', 'crm-disenador-correos-storage', 'crm-email-log-storage',
-                    'crm-email-marketing-storage', 'crm-empresa-storage', 'crm-flujos-storage',
-                    'crm-lineas-servicio-storage', 'crm-modulos-storage', 'crm-oportunidades-storage',
-                    'crm-personal-storage', 'crm-pqrs-storage', 'crm-productos-storage',
-                    'crm-prospectos-storage', 'crm-referencias-storage', 'crm-roles-storage',
-                    'crm-tareas-storage', 'crm-usuarios-storage'
-                  ]
-                  keys.forEach(k => localStorage.removeItem(k))
-
-                  // 2. Borrar TODO lo demás en localStorage
-                  const allKeys = Object.keys(localStorage)
-                  allKeys.forEach(k => localStorage.removeItem(k))
-                  localStorage.clear()
-
-                  // 3. Borrar sessionStorage
-                  sessionStorage.clear()
-
-                  // 4. Borrar IndexedDB completamente
-                  try {
-                    const dbs = await indexedDB.databases()
-                    for (const db of dbs) {
-                      if (db.name) indexedDB.deleteDatabase(db.name)
-                    }
-                  } catch (e) {}
-
-                  // 5. Borrar cookies
-                  const cookies = document.cookie.split(";")
-                  for (const c of cookies) {
-                    const eqIdx = c.indexOf("=")
-                    const nameStr = eqIdx > -1 ? c.substring(0, eqIdx).trim() : c.trim()
-                    if (nameStr && nameStr.length > 0) {
-                      document.cookie = `${nameStr}=;max-age=0;path=/`
-                    }
-                  }
-
-                  // 6. Hard reset - ir a login para asegurar que no quedan datos
-                  await new Promise(r => setTimeout(r, 500))
-                  window.location.href = '/login?t=' + Date.now()
-                } catch (err) {
-                  window.location.href = '/login?t=' + Date.now()
-                }
-              }
+            <button onClick={() => {
+              window.location.href = '/clear'
             }}
               style={{
                 padding: '8px 16px', borderRadius: 8,
