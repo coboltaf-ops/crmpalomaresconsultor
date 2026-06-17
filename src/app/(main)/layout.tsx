@@ -353,10 +353,35 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => {
-              if (confirm('⚠️ Esto borrará TODOS los datos del CRM. ¿Continuar?')) {
-                localStorage.clear()
-                location.reload()
+            <button onClick={async () => {
+              if (confirm('⚠️ Esto borrará TODOS los datos del CRM. ¿SEGURO?')) {
+                try {
+                  // 1. Limpiar localStorage
+                  localStorage.clear()
+                  // 2. Limpiar sessionStorage
+                  sessionStorage.clear()
+                  // 3. Limpiar IndexedDB
+                  const dbs = await indexedDB.databases()
+                  for (const db of dbs) {
+                    indexedDB.deleteDatabase(db.name)
+                  }
+                  // 4. Limpiar cookies
+                  const cookies = document.cookie.split(";")
+                  cookies.forEach(c => {
+                    const parts = c.split("=")
+                    const key = (parts[0] || "").trim()
+                    if (key) {
+                      document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
+                      document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;domain=${window.location.hostname};`
+                    }
+                  })
+                  // 5. Esperar y recargar
+                  await new Promise(r => setTimeout(r, 800))
+                  window.location.href = window.location.href
+                } catch (err) {
+                  console.error('Error limpiando:', err)
+                  location.reload()
+                }
               }
             }}
               style={{
