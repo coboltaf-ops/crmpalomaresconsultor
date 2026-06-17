@@ -353,6 +353,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => {
+              if (confirm('⚠️ Esto borrará TODOS los datos del CRM. ¿Continuar?')) {
+                localStorage.clear()
+                location.reload()
+              }
+            }}
+              style={{
+                padding: '8px 16px', borderRadius: 8,
+                background: '#7c2d12', border: '1px solid #ea580c',
+                color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              }}>
+              🗑️ Limpiar Datos
+            </button>
             {pathname !== '/dashboard' && (
               <button onClick={() => router.push('/dashboard')}
                 style={{
