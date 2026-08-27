@@ -10,7 +10,7 @@ export default function ClearPage() {
     // Borrar IndexedDB
     if (window.indexedDB) {
       indexedDB.databases().then(dbs => {
-        dbs.forEach(db => indexedDB.deleteDatabase(db.name))
+        dbs.forEach(db => { if (db.name) indexedDB.deleteDatabase(db.name) })
       })
     }
 

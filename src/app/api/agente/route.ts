@@ -1,8 +1,10 @@
-import { GoogleGenAI } from '@google/genai'
+import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+
+const MODEL = 'claude-opus-4-8'
 
 const SYSTEM_PROMPT = `Eres el Agente Virtual del CRM Nova Seguridad, una empresa de servicios de seguridad en Colombia (vigilancia física, escoltas, CCTV, GPS, medios tecnológicos y caninos).
 
@@ -21,9 +23,9 @@ Reglas:
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY no configurada en el servidor. Configure la variable de entorno en Vercel.' },
+        { error: 'ANTHROPIC_API_KEY no configurada en el servidor. Configure la variable de entorno en Vercel.' },
         { status: 500 }
       )
     }
@@ -38,32 +40,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Falta el array de mensajes.' }, { status: 400 })
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-    // Gemini usa el rol 'model' en vez de 'assistant' y 'parts:[{text}]' en vez de 'content'.
-    // Inyectamos el contexto del CRM como primer turno de usuario.
+    // Claude usa los roles 'user'/'assistant' y el system prompt como parámetro aparte.
+    // Inyectamos el contexto del CRM como primer turno de usuario, con un ack del asistente.
     const contextoTexto = `DATOS ACTUALES DEL CRM NOVA SEGURIDAD (formato JSON):\n\n\`\`\`json\n${JSON.stringify(context, null, 2)}\n\`\`\``
 
-    const contents = [
-      { role: 'user' as const, parts: [{ text: contextoTexto }] },
-      { role: 'model' as const, parts: [{ text: 'Recibido. Tengo acceso a los datos del CRM. ¿Qué deseas saber?' }] },
-      ...messages.map(m => ({
-        role: (m.role === 'assistant' ? 'model' : 'user') as 'user' | 'model',
-        parts: [{ text: m.content }],
-      })),
+    const apiMessages: Anthropic.MessageParam[] = [
+      { role: 'user', content: contextoTexto },
+      { role: 'assistant', content: 'Recibido. Tengo acceso a los datos del CRM. ¿Qué deseas saber?' },
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
     ]
 
-    const resp = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        maxOutputTokens: 1500,
-      },
+    const resp = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1500,
+      system: SYSTEM_PROMPT,
+      messages: apiMessages,
     })
 
-    const respuesta = resp.text ?? '(sin respuesta)'
-    return NextResponse.json({ ok: true, respuesta, usage: resp.usageMetadata })
+    const respuesta = resp.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('')
+      .trim() || '(sin respuesta)'
+
+    return NextResponse.json({ ok: true, respuesta, modelo: MODEL, usage: resp.usage })
   } catch (err) {
     console.error('[agente] Error:', err)
     const msg = err instanceof Error ? err.message : String(err)
